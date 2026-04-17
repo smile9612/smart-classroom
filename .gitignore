@@ -1,8 +1,5 @@
-# Node.js 관련 (불필요)
+# Node.js 관련
 node_modules/
-package-lock.json
-package.json
-vite.config.mjs
 
 # 테스트/임시 폴더
 test_extract/

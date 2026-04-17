@@ -1,0 +1,21 @@
+{
+  "name": "스마트 교실 관리 시스템",
+  "short_name": "스마트 교실",
+  "description": "선생님을 위한 간편한 출결 및 행동 기록 관리 시스템 세트 (스마트 교실 관리 시스템)",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0f1117",
+  "theme_color": "#0f1117",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

@@ -166,6 +166,53 @@ function renderTimeSettings() {
 function renderTargetHoursSettings() {
   const container = document.getElementById('classTargetHoursList');
   container.innerHTML = '';
+
+  // 학년별 일괄 시수 입력 영역 생성
+  const grades = {};
+  appState.classes.forEach(c => {
+    const match = c.name.match(/^(\d+)/);
+    const grade = match ? match[1] + '학년' : '기타';
+    if (!grades[grade]) grades[grade] = [];
+    grades[grade].push(c.id);
+  });
+
+  const gradeKeys = Object.keys(grades).sort();
+  if (gradeKeys.length > 0) {
+    const bulkDiv = document.createElement('div');
+    bulkDiv.className = 'bulk-hours-wrapper';
+    bulkDiv.style.cssText = 'margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid var(--border);';
+    
+    let html = `<strong style="display:block; margin-bottom:8px; font-size:0.9rem;">학년별 일괄 시수 기입</strong>
+                <div style="display:flex; flex-wrap:wrap; gap:10px;">`;
+    gradeKeys.forEach(g => {
+      html += `<div style="display:flex; align-items:center; gap:5px; background:var(--bg-lighter); padding:5px 8px; border-radius:6px;">
+        <span style="font-size:0.85rem">${g}:</span>
+        <input type="number" class="form-input bulk-grade-input" data-grade="${g}" style="width:60px;" placeholder="시수" min="0">
+        <button class="btn btn-secondary btn-sm" onclick="applyBulkHours('${g}')">적용</button>
+      </div>`;
+    });
+    html += `</div>`;
+    bulkDiv.innerHTML = html;
+    container.appendChild(bulkDiv);
+  }
+
+  // 글로벌 일괄 적용 함수
+  window.applyBulkHours = function(grade) {
+    const input = document.querySelector(`.bulk-grade-input[data-grade="${grade}"]`);
+    if(!input || !input.value) return;
+    const val = parseInt(input.value);
+    
+    appState.classes.forEach(c => {
+      const match = c.name.match(/^(\d+)/);
+      const cGrade = match ? match[1] + '학년' : '기타';
+      if(cGrade === grade) {
+        appState.termSettings.targetHours[c.id] = val;
+      }
+    });
+    saveState();
+    renderTargetHoursSettings();
+    showToast(`${grade} 기준 시수가 ${val}시간으로 일괄 적용되었습니다.`, 'success');
+  };
   
   appState.classes.forEach(cls => {
     const hours = appState.termSettings.targetHours[cls.id] || 0;
@@ -200,9 +247,28 @@ function renderWeeklyTimetable() {
   const count = appState.termSettings.schoolType === 'elementary' ? 6 : 8;
   const days = ['월', '화', '수', '목', '금'];
 
+  // 요일에 날짜 표시 (thead 수정)
+  const theadRow = document.querySelector('#weeklyTimetable thead tr');
+  if (theadRow) {
+    let theadHTML = `<th>교시</th>`;
+    for (let d = 0; d < 5; d++) {
+      let dateStr = "";
+      if (currentTimetableMode === 'weekly' && selectedWeekStart) {
+        const targetDate = new Date(selectedWeekStart);
+        targetDate.setDate(targetDate.getDate() + d);
+        dateStr = `<br><span style="font-weight:normal; font-size:0.8rem; color:var(--text-muted);">${targetDate.getMonth()+1}/${targetDate.getDate()}</span>`;
+      }
+      theadHTML += `<th>${days[d]}${dateStr}</th>`;
+    }
+    theadRow.innerHTML = theadHTML;
+  }
+
   for (let p = 0; p < count; p++) {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<th>${p+1}교시</th>`;
+    
+    const tConf = appState.timeConfig[p];
+    const timeStr = tConf ? `<br><span style="font-size:0.75rem; color:var(--text-muted); font-weight:normal;">${tConf.start}~${tConf.end}</span>` : '';
+    tr.innerHTML = `<th>${p+1}교시${timeStr}</th>`;
     
     for (let d = 0; d < 5; d++) {
       const key = `${d}-${p}`;

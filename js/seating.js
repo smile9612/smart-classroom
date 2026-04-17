@@ -499,14 +499,24 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!confirm('학생들의 자리를 무작위로 배치하시겠습니까?')) return;
     const students = shuffleArray([...cls.students]);
     cls.seats = {};
-    const totalPossible = cls.gridRows * cls.gridCols;
     
-    // 배치 가능한 수만큼 루프
-    students.slice(0, totalPossible).forEach((s, i) => {
-      const row = Math.floor(i / cls.gridCols);
-      const col = i % cls.gridCols;
-      cls.seats[`${row}-${col}`] = s.id;
+    // 앞쪽부터 채우기 위해 가능한 모든 자리 키를 앞자리부터 수집
+    let availableKeys = [];
+    for (let r = 0; r < cls.gridRows; r++) {
+      for (let c = 0; c < cls.gridCols; c++) {
+        availableKeys.push(`${r}-${c}`);
+      }
+    }
+    
+    // 학생 수만큼만 앞에서부터 잘라냄 (여기에 무작위로 섞인 학생이 차례로 들어감 -> 앞자리부터 무작위 배치 완성)
+    availableKeys = availableKeys.slice(0, students.length);
+    
+    students.forEach((s, i) => {
+      if (i < availableKeys.length) {
+        cls.seats[availableKeys[i]] = s.id;
+      }
     });
+
     saveState();
     renderSeating();
     showToast('자리가 무작위로 배치되었습니다! 🎲', 'success');

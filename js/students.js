@@ -151,10 +151,12 @@ function bulkAddStudents(text) {
       const gRaw = (parts[2] || '').toLowerCase();
       if (gRaw === '남' || gRaw === 'm' || gRaw === 'male') gender = 'male';
       else if (gRaw === '여' || gRaw === 'f' || gRaw === 'female') gender = 'female';
+      else gender = 'male'; // 기본값 남학생
     } else {
       name = parts[0];
       // ★ 버그 수정: initialCount + added + 1 로 계산 (cls.students.length 사용 금지)
       number = initialCount + added + 1;
+      gender = 'male'; // 번호/이름 형식이 아닐 때도 기본값 남학생
     }
 
     if (name && !cls.students.some(s => s.name === name)) {

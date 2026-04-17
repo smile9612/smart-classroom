@@ -223,6 +223,11 @@ function toggleStudentView() {
   const btn = document.getElementById('btnStudentView');
   btn.classList.toggle('btn-accent', appState.isStudentView);
   
+  const span = btn.querySelector('span');
+  if (span) {
+    span.textContent = appState.isStudentView ? '교사 시점' : '학생 시점';
+  }
+  
   const chalkboard = document.querySelector('.blackboard');
   if (chalkboard) {
     chalkboard.textContent = appState.isStudentView ? '📺 칠판 (학생 시점 - 위)' : '📺 칠판 (교사 시점 - 아래)';
@@ -433,13 +438,6 @@ function initApp() {
   // 학생 시점 버튼
   document.getElementById('btnStudentView').addEventListener('click', toggleStudentView);
 
-  // 랜덤 뽑기 버튼 (복구)
-  const btnRandom = document.getElementById('btnRandom');
-  if (btnRandom) {
-    btnRandom.addEventListener('click', typeof openRandomModal === 'function' ? openRandomModal : () => {
-      showToast('랜덤 뽑기 기능을 불러올 수 없습니다.', 'error');
-    });
-  }
 
   // ESC 키로 모드 종료
   document.addEventListener('keydown', (e) => {

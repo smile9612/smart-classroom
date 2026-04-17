@@ -1510,16 +1510,14 @@ body.presentation-mode .student-number {
 .weekly-table th, .weekly-table td {
   border: 1px solid var(--border);
   text-align: center;
-  height: 65px; /* 기본 높이 상향 */
-  padding: 0;
+  height: 60px;
+  padding: 0; /* 셀렉트 박스가 꽉 차도록 */
 }
 .weekly-table th {
   background: var(--bg-secondary);
   color: var(--text-muted);
   font-weight: 600;
   font-size: 0.9rem;
-  height: auto;
-  padding: 10px 5px;
 }
 .weekly-table td {
   position: relative;

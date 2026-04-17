@@ -4,6 +4,7 @@
 
 /** CSV 파일 다운로드 공통 함수 */
 function downloadCsv(csvContent, filename) {
+  // BOM 추가 (엑셀 한글 깨짐 방지)
   const BOM = '\uFEFF';
   const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
@@ -38,6 +39,7 @@ function renderStats() {
   const behaviors = cls ? appState.behaviors.filter(b => b.classId === cls.id) : [];
   const attendance = cls ? appState.attendance.filter(a => a.classId === cls.id && a.date === today) : [];
 
+  // 요약 카드 값 업데이트
   document.getElementById('statValStudents').textContent = students.length;
   document.getElementById('statValAbsent').textContent =
     attendance.filter(a => a.status === 'absent').length;
@@ -45,11 +47,17 @@ function renderStats() {
   document.getElementById('statValPositive').textContent =
     behaviors.filter(b => b.type === 'positive').length;
 
+  // 행동 유형별 통계 차트
   renderBehaviorStatsChart(behaviors);
+
+  // 학급별 시수 현황 차트
   renderLessonStatsChart();
+
+  // 학생별 행동 요약
   renderStudentBehaviorSummary(cls, behaviors);
 }
 
+/** 학급별 시수 현황 (목표 대비 실제) */
 function renderLessonStatsChart() {
   const container = document.getElementById('lessonStatsChart');
   container.innerHTML = '';
@@ -69,7 +77,7 @@ function renderLessonStatsChart() {
     row.innerHTML = `
       <span style="min-width:130px;font-size:0.85rem;font-weight:600;">${cls.name}</span>
       <div class="stat-bar-wrap">
-        <div class="stat-bar positive" style="width:${pct}%"></div>
+        <div class="stat-bar positive" style="width:${pct}%"></div> 
       </div>
       <span class="stat-count">${actual} / ${target}h (${pct}%)</span>
     `;
@@ -85,10 +93,12 @@ function renderLessonStatsChart() {
   }
 }
 
+/** 행동 유형별 통계 막대 차트 */
 function renderBehaviorStatsChart(behaviors) {
   const container = document.getElementById('behaviorStatsChart');
   container.innerHTML = '';
 
+  // 행동별 집계
   const counts = {};
   const types = {};
   behaviors.forEach(b => {
@@ -120,6 +130,7 @@ function renderBehaviorStatsChart(behaviors) {
   });
 }
 
+/** 학생별 행동 요약 */
 function renderStudentBehaviorSummary(cls, behaviors) {
   const container = document.getElementById('studentBehaviorSummary');
   container.innerHTML = '';
@@ -129,6 +140,7 @@ function renderStudentBehaviorSummary(cls, behaviors) {
     return;
   }
 
+  // 학생별 집계
   const summary = {};
   cls.students.forEach(s => { summary[s.id] = { positive: 0, negative: 0, student: s }; });
   behaviors.forEach(b => {
@@ -141,7 +153,7 @@ function renderStudentBehaviorSummary(cls, behaviors) {
   const sorted = Object.values(summary).sort((a, b) => (b.positive + b.negative) - (a.positive + a.negative));
 
   sorted.forEach(({ student, positive, negative }) => {
-    if (positive + negative === 0) return;
+    if (positive + negative === 0) return; // 기록 없는 학생은 생략
     const row = document.createElement('div');
     row.className = 'student-summary-row';
     row.innerHTML = `
@@ -157,6 +169,7 @@ function renderStudentBehaviorSummary(cls, behaviors) {
   }
 }
 
+/** 나이스 입력용 CSV 내보내기 (학생별 행동 요약) */
 function exportNeisCsv() {
   const cls = getCurrentClass();
   if (!cls) return;
@@ -165,6 +178,7 @@ function exportNeisCsv() {
   const studentMap = {};
   cls.students.forEach(s => studentMap[s.id] = s);
 
+  // 학생별, 날짜별 그룹화
   const grouped = {};
   behaviors.forEach(b => {
     const key = b.studentId;
@@ -187,6 +201,7 @@ function exportNeisCsv() {
   showToast('나이스 입력용 파일이 다운로드되었습니다.', 'success');
 }
 
+/** 전체 출결 CSV */
 function exportAllAttendanceCsv() {
   const cls = getCurrentClass();
   if (!cls) return;
@@ -220,7 +235,7 @@ function backupAllData() {
   showToast('전체 데이터가 백업되었습니다.', 'success');
 }
 
-/** JSON 데이터 복원 - 완벽한 원본 버전 */
+/** JSON 데이터 복원 */
 function restoreFromJson(file) {
   const reader = new FileReader();
   reader.onload = (e) => {
@@ -230,13 +245,14 @@ function restoreFromJson(file) {
         showToast('올바른 백업 파일이 아닙니다.', 'error');
         return;
       }
-
       if (!confirm(`백업 파일(${data.exportDate?.slice(0, 10) || '알 수 없음'} 생성)을 복원하면 현재 데이터가 모두 교체됩니다. 계속하시겠습니까?`)) return;
 
       appState.classes = data.classes || [];
       appState.behaviors = data.behaviors || [];
       appState.attendance = data.attendance || [];
       appState.currentClassId = data.currentClassId || data.classes[0]?.id || null;
+      
+      // ★ 추가 유실 방지: 시간표 및 설정 데이터 모두 복원
       appState.timetable = data.timetable || {};
       appState.weeklyTimetable = data.weeklyTimetable || {};
       appState.timeConfig = data.timeConfig || appState.timeConfig;

@@ -1,267 +1,480 @@
-/* timetable.js - 주간 시간표 완전 복원 */
+/**
+ * js/timetable.js
+ * 시간표 관리, 시정표 설정, 공휴일 및 시수 집계 로직
+ */
 
-const DAYS = ['\uC6D4', '\uD654', '\uC218', '\uBAA9', '\uAE08'];
+let currentTimetableMode = 'base'; // 'base' 또는 'weekly'
+let selectedWeekStart = null; // Date object representing Monday of the selected week
+
+document.addEventListener('DOMContentLoaded', () => {
+  initTimetableTab();
+});
 
 function initTimetableTab() {
+  // 이벤트 리스너
+  document.getElementById('schoolType').addEventListener('change', (e) => {
+    appState.termSettings.schoolType = e.target.value;
+    renderWeeklyTimetable();
+    renderTimeSettings();
+  });
+
+  document.getElementById('btnSaveTimetable').addEventListener('click', saveAllTimetableConfig);
+  document.getElementById('btnAddHoliday').addEventListener('click', addHoliday);
+  document.getElementById('btnGoToClass').addEventListener('click', goToCurrentClass);
+  
+  // 기초/주간 전환
+  document.getElementById('btnViewBase').addEventListener('click', () => setTimetableMode('base'));
+  document.getElementById('btnViewWeekly').addEventListener('click', () => setTimetableMode('weekly'));
+  
+  // 주차 이동
+  document.getElementById('btnPrevWeek').addEventListener('click', () => navigateWeek(-1));
+  document.getElementById('btnNextWeek').addEventListener('click', () => navigateWeek(1));
+  document.getElementById('btnApplyBaseToWeek').addEventListener('click', applyBaseToCurrentWeek);
+  
+  // 상태 초기화
+  if (!appState.weeklyTimetable) appState.weeklyTimetable = {};
+  initSelectedWeek();
+
+  // 초기 렌더링
   loadTimetableUI();
+
+  // 주기적으로 현재 수업 감지 (1분마다)
+  setInterval(checkCurrentLesson, 60000);
+  checkCurrentLesson();
 }
 
 function loadTimetableUI() {
-  renderTermSettings();
-  renderBaseTimtable();
+  const ts = appState.termSettings;
+  document.getElementById('termStartDate').value = ts.startDate || "";
+  document.getElementById('termEndDate').value = ts.endDate || "";
+  document.getElementById('schoolType').value = ts.schoolType || "secondary";
+
+  renderTimeSettings();
+  renderWeeklyTimetable();
+  renderTargetHoursSettings(); // renderWeeklyTimetable 이후 실행하여 시수 업데이트 보장
   renderHolidayList();
 }
 
-function renderTermSettings() {
-  const s = window.appState.termSettings || {};
-  const stEl = document.getElementById('termStart');
-  const enEl = document.getElementById('termEnd');
-  const stEl2 = document.getElementById('schoolTypeSelect');
-  const mnEl = document.getElementById('morningNotifyTime');
-  const mnEnEl = document.getElementById('morningNotifyEnabled');
-  if (stEl) stEl.value = s.startDate || '';
-  if (enEl) enEl.value = s.endDate || '';
-  if (stEl2) stEl2.value = s.schoolType || 'secondary';
-  if (mnEl) mnEl.value = s.morningNotifyTime || '08:30';
-  if (mnEnEl) mnEnEl.checked = s.morningNotifyEnabled !== false;
-  renderTimeConfig();
-  renderTargetHoursSection();
-}
-
-function renderTimeConfig() {
-  const container = document.getElementById('timeConfigContainer');
-  if (!container) return;
-  const cfg = window.appState.timeConfig || [];
-  container.innerHTML = '';
-  cfg.forEach((t, i) => {
-    const row = document.createElement('div');
-    row.className = 'time-config-row';
-    row.innerHTML = '<span>' + (i + 1) + '\uAD50\uC2DC</span>'
-      + '<input type="time" value="' + t.start + '" onchange="updateTimeConfig(' + i + ',\'start\',this.value)">'
-      + '<span>~</span>'
-      + '<input type="time" value="' + t.end + '" onchange="updateTimeConfig(' + i + ',\'end\',this.value)">';
-    container.appendChild(row);
-  });
-}
-
-function updateTimeConfig(idx, field, val) {
-  if (!window.appState.timeConfig[idx]) return;
-  window.appState.timeConfig[idx][field] = val;
-  saveState();
-}
-
-function renderTargetHoursSection() {
-  const container = document.getElementById('targetHoursContainer');
-  if (!container) return;
-  const classes = window.appState.classes || [];
-  if (classes.length === 0) {
-    container.innerHTML = '<p class="help-text">\uBC18\uC744 \uBA3C\uC800 \uCD94\uAC00\uD558\uC138\uC694.</p>';
-    return;
-  }
-  container.innerHTML = '';
-  classes.forEach(cls => {
-    const target = (window.appState.termSettings.targetHours || {})[cls.id] || 0;
-    const row = document.createElement('div');
-    row.className = 'target-hours-row';
-    row.innerHTML = '<span>' + cls.name + '</span><input type="number" min="0" value="' + target + '" onchange="setTargetHours(\'' + cls.id + '\', this.value)"> \uC2DC\uAC04';
-    container.appendChild(row);
-  });
-}
-
-function setTargetHours(classId, val) {
-  if (!window.appState.termSettings.targetHours) window.appState.termSettings.targetHours = {};
-  window.appState.termSettings.targetHours[classId] = parseInt(val) || 0;
-  saveState();
-}
-
-function saveTermSettings() {
-  const s = window.appState.termSettings;
-  const stEl = document.getElementById('termStart');
-  const enEl = document.getElementById('termEnd');
-  const stEl2 = document.getElementById('schoolTypeSelect');
-  const mnEl = document.getElementById('morningNotifyTime');
-  const mnEnEl = document.getElementById('morningNotifyEnabled');
-  if (stEl) s.startDate = stEl.value;
-  if (enEl) s.endDate = enEl.value;
-  if (stEl2) s.schoolType = stEl2.value;
-  if (mnEl) s.morningNotifyTime = mnEl.value;
-  if (mnEnEl) s.morningNotifyEnabled = mnEnEl.checked;
-  saveState();
-  if (typeof showToast === 'function') showToast('\uC124\uC815\uC774 \uC800\uC7A5\uB418\uC5C8\uC2B5\uB2C8\uB2E4.');
-}
-
-function applyBulkTargetHours() {
-  const gradeEl = document.getElementById('bulkGradeSelect');
-  const hoursEl = document.getElementById('bulkHoursInput');
-  if (!gradeEl || !hoursEl) return;
-  const grade = gradeEl.value;
-  const hours = parseInt(hoursEl.value) || 0;
-  if (!window.appState.termSettings.targetHours) window.appState.termSettings.targetHours = {};
-  window.appState.classes.filter(c => c.grade === grade || !grade).forEach(c => {
-    window.appState.termSettings.targetHours[c.id] = hours;
-  });
-  saveState();
-  renderTargetHoursSection();
-  if (typeof showToast === 'function') showToast('\uC77C\uAD04 \uC801\uC6A9\uB418\uC5C8\uC2B5\uB2C8\uB2E4.');
-}
-
-function renderBaseTimtable() {
-  const container = document.getElementById('baseTimetableGrid');
-  if (!container) return;
-  const schoolType = (window.appState.termSettings || {}).schoolType || 'secondary';
-  const periods = schoolType === 'elementary' ? 6 : 8;
-  const timetable = window.appState.timetable || {};
-  let html = '<table class="timetable-table"><thead><tr><th>\uAD50\uC2DC</th>';
-  DAYS.forEach(d => { html += '<th>' + d + '</th>'; });
-  html += '</tr></thead><tbody>';
-  for (let p = 1; p <= periods; p++) {
-    html += '<tr><td class="period-label">' + p + '\uAD50\uC2DC</td>';
-    DAYS.forEach((d, di) => {
-      const key = di + '-' + p;
-      const classId = timetable[key] || '';
-      const cls = window.appState.classes.find(c => c.id === classId);
-      html += '<td class="timetable-cell" onclick="openTimetableCell(\'' + key + '\')">'
-        + (cls ? cls.name : '<span class="empty-cell">-</span>')
-        + '</td>';
-    });
-    html += '</tr>';
-  }
-  html += '</tbody></table>';
-  container.innerHTML = html;
-}
-
-function openTimetableCell(key) {
-  const classes = window.appState.classes || [];
-  const current = window.appState.timetable[key] || '';
-  const opts = classes.map(c => '<option value="' + c.id + '"' + (c.id === current ? ' selected' : '') + '>' + c.name + '</option>').join('');
-  const modal = document.getElementById('classSelectModal');
-  if (modal) {
-    document.getElementById('classSelectKey').value = key;
-    const sel = document.getElementById('classSelectDropdown');
-    if (sel) sel.innerHTML = '<option value="">\uC120\uD0DD \uC548\uD568</option>' + opts;
-    modal.classList.remove('hidden');
-  }
-}
-
-function confirmClassSelect() {
-  const key = document.getElementById('classSelectKey')?.value;
-  const classId = document.getElementById('classSelectDropdown')?.value || '';
-  if (key !== undefined) {
-    if (classId) window.appState.timetable[key] = classId;
-    else delete window.appState.timetable[key];
-    saveState();
-    renderBaseTimtable();
-    renderWeeklyTimetable();
-  }
-  document.getElementById('classSelectModal')?.classList.add('hidden');
-}
-
-function renderWeeklyTimetable() {
-  const container = document.getElementById('weeklyTimetableContainer');
-  if (!container) return;
-  const today = new Date();
-  const weekKey = getWeekKeyFull(today);
-  const weekly = (window.appState.weeklyTimetable || {})[weekKey] || window.appState.timetable || {};
-  const schoolType = (window.appState.termSettings || {}).schoolType || 'secondary';
-  const periods = schoolType === 'elementary' ? 6 : 8;
-  let html = '<table class="timetable-table weekly"><thead><tr><th>\uAD50\uC2DC</th>';
-  DAYS.forEach(d => { html += '<th>' + d + '</th>'; });
-  html += '</tr></thead><tbody>';
-  for (let p = 1; p <= periods; p++) {
-    html += '<tr><td class="period-label">' + p + '\uAD50\uC2DC</td>';
-    DAYS.forEach((d, di) => {
-      const key = di + '-' + p;
-      const classId = weekly[key] || '';
-      const cls = window.appState.classes.find(c => c.id === classId);
-      html += '<td class="timetable-cell">' + (cls ? cls.name : '-') + '</td>';
-    });
-    html += '</tr>';
-  }
-  html += '</tbody></table>';
-  container.innerHTML = html;
-}
-
-function goToCurrentClass() {
+// ── 주차 이동 및 상태 관련 ──
+function initSelectedWeek() {
   const now = new Date();
-  const dayIdx = now.getDay() - 1;
-  if (dayIdx < 0 || dayIdx > 4) {
-    if (typeof showToast === 'function') showToast('\uC624\uB298\uC740 \uC218\uC5C5\uC774 \uC5C6\uB294 \uB0A0\uC785\uB2C8\uB2E4.');
-    return;
-  }
-  const cfg = window.appState.timeConfig || [];
-  const nowStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-  let currentPeriod = -1;
-  cfg.forEach((t, i) => {
-    if (nowStr >= t.start && nowStr <= t.end) currentPeriod = i + 1;
-  });
-  if (currentPeriod === -1) {
-    if (typeof showToast === 'function') showToast('\uC9C0\uAE08\uC740 \uC218\uC5C5 \uC2DC\uAC04\uC774 \uC544\uB2D9\uB2C8\uB2E4.');
-    return;
-  }
-  const key = dayIdx + '-' + currentPeriod;
-  const classId = (window.appState.timetable || {})[key];
-  if (!classId) {
-    if (typeof showToast === 'function') showToast('\uD604\uC7AC \uAD50\uC2DC\uC5D0 \uBC30\uC815\uB41C \uBC18\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.');
-    return;
-  }
-  window.appState.currentClassId = classId;
-  saveState();
-  const sel = document.getElementById('classSelect');
-  if (sel) sel.value = classId;
-  if (typeof renderAll === 'function') renderAll();
-  if (typeof showToast === 'function') showToast('\uD574\uB2F9 \uBC18\uC73C\uB85C \uC774\uB3D9\uD558\uC600\uC2B5\uB2C8\uB2E4.');
+  selectedWeekStart = getMonday(now);
+  updateWeekDisplay();
 }
 
+function getMonday(d) {
+  const date = new Date(d);
+  const day = date.getDay() || 7; 
+  if (day !== 1) date.setHours(-24 * (day - 1));
+  date.setHours(0,0,0,0);
+  return date;
+}
+
+function getWeekKey(d) {
+  const mon = getMonday(d);
+  return `${mon.getFullYear()}-${String(mon.getMonth()+1).padStart(2,'0')}-${String(mon.getDate()).padStart(2,'0')}`;
+}
+
+function updateWeekDisplay() {
+  if (!selectedWeekStart) return;
+  const year = selectedWeekStart.getFullYear();
+  const month = selectedWeekStart.getMonth() + 1;
+  const d = selectedWeekStart.getDate();
+  const weekNum = Math.ceil(d / 7);
+  document.getElementById('currentWeekDisplay').textContent = `${year}년 ${month}월 ${weekNum}주차`;
+}
+
+function setTimetableMode(mode) {
+  currentTimetableMode = mode;
+  const btnBase = document.getElementById('btnViewBase');
+  const btnWeekly = document.getElementById('btnViewWeekly');
+  
+  if (mode === 'base') {
+    btnBase.className = 'btn btn-primary';
+    btnWeekly.className = 'btn btn-ghost';
+    document.getElementById('weekNavigator').classList.add('hidden');
+    document.getElementById('weekNavigator').style.display = 'none';
+    document.getElementById('timetableAreaTitle').textContent = '📋 기초 시간표 입력';
+    document.getElementById('timetableAreaHelp').textContent = '각 칸을 클릭하여 해당 교시의 수업 학급을 선택하세요. (기초 시간표는 매주의 기본값이 됩니다.)';
+    
+    // 기초 설정 카드들 보이기
+    const configCards = document.querySelectorAll('.timetable-layout .config-card');
+    configCards.forEach(card => {
+      if (!card.classList.contains('timetable-main-card')) {
+        card.style.display = 'block';
+      }
+    });
+  } else {
+    btnBase.className = 'btn btn-ghost';
+    btnWeekly.className = 'btn btn-primary';
+    document.getElementById('weekNavigator').classList.remove('hidden');
+    document.getElementById('weekNavigator').style.display = 'flex';
+    document.getElementById('timetableAreaTitle').textContent = '🗓️ 주간 시간표 입력';
+    document.getElementById('timetableAreaHelp').textContent = '이 주에 한해 기초 시간표를 덮어씁니다. (비어있는 칸은 기초 시간표를 따릅니다)';
+
+    // 기초 설정 카드들 숨기기
+    const configCards = document.querySelectorAll('.timetable-layout .config-card');
+    configCards.forEach(card => {
+      if (!card.classList.contains('timetable-main-card')) {
+        card.style.display = 'none';
+      }
+    });
+  }
+  renderWeeklyTimetable();
+}
+
+function navigateWeek(dir) {
+  selectedWeekStart.setDate(selectedWeekStart.getDate() + (dir * 7));
+  updateWeekDisplay();
+  renderWeeklyTimetable();
+}
+
+function applyBaseToCurrentWeek() {
+  if (currentTimetableMode !== 'weekly') return;
+  if (!confirm('현재 주간의 시간표 변동내역을 모두 지우고 기초 시간표와 동일하게 만드시겠습니까?')) return;
+  const weekKey = getWeekKey(selectedWeekStart);
+  if (appState.weeklyTimetable[weekKey]) {
+    delete appState.weeklyTimetable[weekKey];
+    saveState();
+    renderWeeklyTimetable();
+    showToast('기초 시간표를 불러왔습니다.', 'success');
+  }
+}
+
+
+/** 교시별 시정 설정 UI 렌더링 */
+function renderTimeSettings() {
+  const container = document.getElementById('periodTimeList');
+  container.innerHTML = '';
+  const count = appState.termSettings.schoolType === 'elementary' ? 6 : 8;
+
+  for (let i = 0; i < count; i++) {
+    const config = appState.timeConfig[i] || { start: "09:00", end: "09:40" };
+    const div = document.createElement('div');
+    div.className = 'time-item';
+    div.innerHTML = `
+      <span>${i+1}교시 :</span>
+      <input type="time" class="form-input time-start" data-index="${i}" value="${config.start}">
+      <span>~</span>
+      <input type="time" class="form-input time-end" data-index="${i}" value="${config.end}">
+    `;
+    container.appendChild(div);
+  }
+}
+
+/** 학급별 기준 시수 설정 UI 렌더링 */
+function renderTargetHoursSettings() {
+  const container = document.getElementById('classTargetHoursList');
+  container.innerHTML = '';
+  
+  appState.classes.forEach(cls => {
+    const hours = appState.termSettings.targetHours[cls.id] || 0;
+    const div = document.createElement('div');
+    div.className = 'hour-item';
+    div.draggable = true;
+    div.dataset.classId = cls.id;
+    
+    // 이 학급의 현재까지 누적 시수 계산
+    const actualHours = calculateActualHours(cls.id);
+    
+    // 드래그 시작 시 데이터 설정
+    div.ondragstart = (e) => {
+      e.dataTransfer.setData('text/plain', cls.id);
+      div.style.opacity = '0.5';
+    };
+    div.ondragend = () => { div.style.opacity = '1'; };
+
+    div.innerHTML = `
+      <span class="class-name" title="끌어다가 시간표에 놓으세요">☰ ${cls.name} <strong style="color:var(--accent); margin-left:5px;">(${actualHours} / ${hours}시간)</strong></span>
+      <input type="number" class="form-input target-hour-input" data-id="${cls.id}" value="${hours}" min="0" style="width: 60px;">
+      <span>시간</span>
+    `;
+    container.appendChild(div);
+  });
+}
+
+/** 주간 시간표 그리드 렌더링 */
+function renderWeeklyTimetable() {
+  const tbody = document.getElementById('timetableBody');
+  tbody.innerHTML = '';
+  const count = appState.termSettings.schoolType === 'elementary' ? 6 : 8;
+  const days = ['월', '화', '수', '목', '금'];
+
+  for (let p = 0; p < count; p++) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<th>${p+1}교시</th>`;
+    
+    for (let d = 0; d < 5; d++) {
+      const key = `${d}-${p}`;
+      
+      let classId = "";
+      if (currentTimetableMode === 'base') {
+        classId = appState.timetable[key] || "";
+      } else {
+        const weekKey = getWeekKey(selectedWeekStart);
+        if (appState.weeklyTimetable[weekKey] && appState.weeklyTimetable[weekKey][key] !== undefined) {
+          classId = appState.weeklyTimetable[weekKey][key];
+        } else {
+          // 주간에 내용이 없으면 기초를 가져옴
+          classId = appState.timetable[key] || "";
+        }
+      }
+      
+      const td = document.createElement('td');
+      td.dataset.key = key;
+
+      // 1. 드롭다운 선택박스 생성
+      const select = document.createElement('select');
+      select.className = 'timetable-select';
+      if (currentTimetableMode === 'weekly' && (!appState.weeklyTimetable[getWeekKey(selectedWeekStart)] || appState.weeklyTimetable[getWeekKey(selectedWeekStart)][key] === undefined)) {
+        // 기초 시간표를 그대로 상속받는 상태 표시
+        select.style.color = '#888'; 
+      }
+      
+      const defaultOpt = document.createElement('option');
+      defaultOpt.value = "";
+      defaultOpt.textContent = "-";
+      select.appendChild(defaultOpt);
+
+      appState.classes.forEach(cls => {
+        const opt = document.createElement('option');
+        opt.value = cls.id;
+        opt.textContent = cls.name;
+        if (cls.id === classId) opt.selected = true;
+        select.appendChild(opt);
+      });
+
+      select.onchange = (e) => {
+        if (currentTimetableMode === 'base') {
+          if (e.target.value) appState.timetable[key] = e.target.value;
+          else delete appState.timetable[key];
+        } else {
+          const weekKey = getWeekKey(selectedWeekStart);
+          if (!appState.weeklyTimetable[weekKey]) appState.weeklyTimetable[weekKey] = {};
+          appState.weeklyTimetable[weekKey][key] = e.target.value; // "" 일 수도 있음 (결강 처리)
+          select.style.color = 'inherit';
+        }
+        saveState();
+        checkCurrentLesson();
+        renderTargetHoursSettings(); // 수정 시 시수 즉각 반영
+      };
+
+      // 2. 드래그 앤 드롭 이벤트 연결
+      td.ondragover = (e) => {
+        e.preventDefault();
+        td.classList.add('drag-over');
+      };
+      td.ondragleave = () => td.classList.remove('drag-over');
+      td.ondrop = (e) => {
+        e.preventDefault();
+        td.classList.remove('drag-over');
+        const droppedClassId = e.dataTransfer.getData('text/plain');
+        if (droppedClassId) {
+          if (currentTimetableMode === 'base') {
+            appState.timetable[key] = droppedClassId;
+          } else {
+            const weekKey = getWeekKey(selectedWeekStart);
+            if (!appState.weeklyTimetable[weekKey]) appState.weeklyTimetable[weekKey] = {};
+            appState.weeklyTimetable[weekKey][key] = droppedClassId;
+          }
+          renderWeeklyTimetable();
+          renderTargetHoursSettings();
+          saveState();
+          checkCurrentLesson();
+        }
+      };
+
+      td.appendChild(select);
+      tr.appendChild(td);
+    }
+    tbody.appendChild(tr);
+  }
+}
+
+/** 기존의 selectClassForTimetable 함수는 삭제되거나 호출되지 않음 */
+
+/** 특정 교시 학급 선택 (팝업 대신 간단한 prompt 사용) */
+function selectClassForTimetable(key, td) {
+  const classNames = appState.classes.map(c => c.name).join(', ');
+  const input = prompt(`해당 교시의 학급 이름을 입력하세요.\n(목록: ${classNames} / 비우려면 취소)`, td.textContent);
+  
+  if (input === null) return;
+  
+  const selectedClass = appState.classes.find(c => c.name === input.trim());
+  if (selectedClass) {
+    appState.timetable[key] = selectedClass.id;
+  } else {
+    delete appState.timetable[key];
+  }
+  renderWeeklyTimetable();
+}
+
+/** 공휴일 리스트 렌더링 */
 function renderHolidayList() {
   const container = document.getElementById('holidayList');
-  if (!container) return;
-  const holidays = window.appState.holidays || [];
-  if (holidays.length === 0) {
-    container.innerHTML = '<p class="help-text">\uB4F1\uB85D\uB41C \uD734\uC77C\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.</p>';
-    return;
-  }
-  container.innerHTML = holidays.map((h, i) =>
-    '<div class="holiday-item"><span>' + h.date + ' (' + h.name + ')</span><button onclick="removeHoliday(' + i + ')">\u2715</button></div>'
-  ).join('');
+  container.innerHTML = '';
+  
+  appState.holidays.sort((a,b) => a.date.localeCompare(b.date)).forEach((h, idx) => {
+    const span = document.createElement('span');
+    span.className = 'holiday-badge';
+    span.innerHTML = `
+      ${h.date} (${h.label})
+      <button class="btn-del-holiday" onclick="removeHoliday(${idx})">✕</button>
+    `;
+    container.appendChild(span);
+  });
 }
 
+/** 공휴일 추가 */
 function addHoliday() {
-  const dateEl = document.getElementById('holidayDate');
-  const nameEl = document.getElementById('holidayName');
-  if (!dateEl || !nameEl) return;
-  const date = dateEl.value;
-  const name = nameEl.value.trim();
-  if (!date || !name) {
-    if (typeof showToast === 'function') showToast('\uB0A0\uC9DC\uC640 \uC774\uB984\uC744 \uC785\uB825\uD558\uC138\uC694.');
-    return;
-  }
-  if (!window.appState.holidays) window.appState.holidays = [];
-  window.appState.holidays.push({ date, name });
-  window.appState.holidays.sort((a, b) => a.date.localeCompare(b.date));
-  saveState();
-  dateEl.value = '';
-  nameEl.value = '';
+  const date = document.getElementById('holidayDate').value;
+  const label = document.getElementById('holidayLabel').value.trim();
+  if (!date || !label) { showToast('날짜와 사유를 입력하세요.', 'error'); return; }
+  
+  appState.holidays.push({ date, label });
+  document.getElementById('holidayDate').value = '';
+  document.getElementById('holidayLabel').value = '';
   renderHolidayList();
 }
 
 function removeHoliday(idx) {
-  window.appState.holidays.splice(idx, 1);
-  saveState();
+  appState.holidays.splice(idx, 1);
   renderHolidayList();
 }
 
-// window 전역 등록
-window.initTimetableTab = initTimetableTab;
-window.loadTimetableUI = loadTimetableUI;
-window.saveTermSettings = saveTermSettings;
-window.updateTimeConfig = updateTimeConfig;
-window.setTargetHours = setTargetHours;
-window.applyBulkTargetHours = applyBulkTargetHours;
-window.renderBaseTimtable = renderBaseTimtable;
-window.openTimetableCell = openTimetableCell;
-window.confirmClassSelect = confirmClassSelect;
-window.renderWeeklyTimetable = renderWeeklyTimetable;
-window.goToCurrentClass = goToCurrentClass;
-window.addHoliday = addHoliday;
-window.removeHoliday = removeHoliday;
-window.renderTargetHoursSection = renderTargetHoursSection;
+/** 모든 설정 저장 */
+function saveAllTimetableConfig() {
+  // 1. 학기 설정
+  appState.termSettings.startDate = document.getElementById('termStartDate').value;
+  appState.termSettings.endDate = document.getElementById('termEndDate').value;
+  
+  // 2. 시정 설정
+  const startInputs = document.querySelectorAll('.time-start');
+  const endInputs = document.querySelectorAll('.time-end');
+  startInputs.forEach(input => {
+    const idx = input.dataset.index;
+    if (!appState.timeConfig[idx]) appState.timeConfig[idx] = {};
+    appState.timeConfig[idx].start = input.value;
+  });
+  endInputs.forEach(input => {
+    const idx = input.dataset.index;
+    appState.timeConfig[idx].end = input.value;
+  });
+
+  // 3. 목표 시수 설정
+  const hourInputs = document.querySelectorAll('.target-hour-input');
+  hourInputs.forEach(input => {
+    appState.termSettings.targetHours[input.dataset.id] = parseInt(input.value) || 0;
+  });
+
+  saveState();
+  renderTargetHoursSettings(); // 저장 시 시수 UI 재계산
+  showToast('시간표 및 설정이 저장되었습니다.', 'success');
+  checkCurrentLesson();
+}
+
+/** 현재 수업 감지 로직 */
+function checkCurrentLesson() {
+  const now = new Date();
+  const day = now.getDay(); // 0(일)~6(토)
+  if (day === 0 || day === 6) {
+    hideSmartNotice();
+    return;
+  }
+
+  const timeStr = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
+  const currentPeriodIdx = appState.timeConfig.findIndex(conf => timeStr >= conf.start && timeStr <= conf.end);
+
+  if (currentPeriodIdx > -1) {
+    const key = `${day-1}-${currentPeriodIdx}`;
+    // 주간 시간표가 적용되어 있다면 우선적으로 가져옴 (추후 구조 변경을 대비)
+    let classId = appState.timetable[key];
+    
+    // 이후 주간 시간표(weeklyTimetable) 구현 시 여기에서 이번 주 데이터를 먼저 참조하도록 수정 예정
+    const weekKey = getWeekKey(now); 
+    if (appState.weeklyTimetable && appState.weeklyTimetable[weekKey] && appState.weeklyTimetable[weekKey][key] !== undefined) {
+      classId = appState.weeklyTimetable[weekKey][key];
+    }
+    
+    const cls = appState.classes.find(c => c.id === classId);
+    
+    if (cls) {
+      // 이미 해당 학급 화면에 있는 경우, 반복해서 팝업을 띄우지 않음
+      if (appState.currentClassId === classId) {
+        hideSmartNotice();
+        return;
+      }
+      showSmartNotice(currentPeriodIdx + 1, cls);
+      return;
+    }
+  }
+  hideSmartNotice();
+}
+
+function showSmartNotice(period, cls) {
+  const notice = document.getElementById('smartClassNotice');
+  const msg = document.getElementById('noticeMsg');
+  notice.classList.remove('hidden');
+  msg.innerHTML = `현재 <strong style="color:#ffd700">${period}교시</strong> 수업 시간입니다. <strong>[${cls.name}]</strong> 화면으로 이동할까요?`;
+  window._currentDetectedClassId = cls.id;
+}
+
+function hideSmartNotice() {
+  document.getElementById('smartClassNotice').classList.add('hidden');
+}
+
+function goToCurrentClass() {
+  if (window._currentDetectedClassId) {
+    appState.currentClassId = window._currentDetectedClassId;
+    saveState();
+    // 강제 갱신
+    document.getElementById('classSelect').value = appState.currentClassId;
+    activateTab('seating');
+    renderSeating();
+    renderStudentSidebar();
+    hideSmartNotice();
+  }
+}
+
+function calculateActualHours(classId) {
+  const ts = appState.termSettings;
+  if (!ts.startDate) return 0;
+
+  const start = new Date(ts.startDate);
+  // 종료기준: 현재 타임테이블 모드가 weekly이고 주간을 보고 있다면 오늘이 아니라 그 주간의 금요일까지? 
+  // 아니면 "현재까지(오늘)"가 기준이 되어야 함. 명세에 따라 "오늘까지 실제로 수업한 횟수".
+  const today = new Date();
+  today.setHours(23, 59, 59); // 오늘 끝까지 포함
+
+  let count = 0;
+  let current = new Date(start);
+
+  while (current <= today) {
+    const day = current.getDay();
+    if (day !== 0 && day !== 6) { // 주말 제외
+      const dateStr = current.toISOString().split('T')[0];
+      const isHoliday = appState.holidays.some(h => h.date === dateStr);
+      
+      if (!isHoliday) {
+        // 기초 시간표인지 주간 덮어쓰기인지 확인
+        const dayIdx = day - 1;
+        const weekKey = getWeekKey(current);
+        
+        for (let p = 0; p < (ts.schoolType === 'elementary' ? 6 : 8); p++) {
+          const tKey = `${dayIdx}-${p}`;
+          let actualClassId = appState.timetable[tKey] || "";
+          
+          if (appState.weeklyTimetable && appState.weeklyTimetable[weekKey] && appState.weeklyTimetable[weekKey][tKey] !== undefined) {
+             actualClassId = appState.weeklyTimetable[weekKey][tKey];
+          }
+          
+          if (actualClassId === classId) {
+            count++;
+          }
+        }
+      }
+    }
+    current.setDate(current.getDate() + 1);
+  }
+  return count;
+}

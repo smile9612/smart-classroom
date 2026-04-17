@@ -1,178 +1,489 @@
-/* behavior.js - 행동 기록 완전 복원 */
+/* ==========================================
+   behavior.js - 원클릭 행동 기록 모듈
+   ========================================== */
 
-let bulkMode = false;
-let bulkSelected = new Set();
+// 현재 열린 모달의 학생 ID
+let currentModalStudentId = null;
 
+/** 행동 기록 모달 열기 */
 function openBehaviorModal(studentId) {
   const cls = getCurrentClass();
   if (!cls) return;
   const student = cls.students.find(s => s.id === studentId);
   if (!student) return;
 
-  const nameEl = document.getElementById('modalStudentName');
-  if (nameEl) nameEl.textContent = student.name;
+  currentModalStudentId = studentId;
 
-  // 출결 상태 표시
-  const attEl = document.getElementById('modalAttStatus');
-  if (attEl) {
-    const date = todayStr();
-    const att = window.appState.attendance.find(a => a.studentId === studentId && a.date === date);
-    const status = att ? att.status : 'present';
-    const info = ATTENDANCE_STATUS[status] || {};
-    attEl.textContent = (info.icon || '') + ' ' + (info.label || '\uCD9C\uC11D');
-  }
+  // 제목 및 날짜 설정
+  document.getElementById('modalStudentName').textContent = `${student.number}번 ${student.name}`;
+  document.getElementById('modalDate').textContent = `📅 ${formatDate(todayStr())}`;
 
-  // 오늘 행동기록 표시
-  renderModalBehaviorList(studentId);
-
-  const modal = document.getElementById('behaviorModal');
-  if (modal) {
-    modal.classList.remove('hidden');
-    modal.dataset.studentId = studentId;
-  }
-}
-
-function renderModalBehaviorList(studentId) {
-  const container = document.getElementById('modalRecentRecords');
-  if (!container) return;
+  // 오늘 출결 상태 버튼 활성화
   const today = todayStr();
-  const records = window.appState.behaviors.filter(b => b.studentId === studentId && b.date === today);
-  if (records.length === 0) {
-    container.innerHTML = '<p class="help-text">\uC624\uB298 \uAE30\uB85D\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.</p>';
-    return;
-  }
-  container.innerHTML = records.map((b, i) => {
-    const typeInfo = getAllBehaviorTypes().find(t => t.label === b.label) || {};
-    return '<div class="record-item">'
-      + '<span>' + (typeInfo.emoji || '') + ' ' + b.label + '</span>'
-      + '<button onclick="deleteBehaviorRecord(' + i + ',\'' + studentId + '\')">\u2715</button>'
-      + '</div>';
-  }).join('');
+  const attRecord = appState.attendance.find(
+    a => a.studentId === studentId && a.classId === cls.id && a.date === today
+  );
+  const currentStatus = attRecord ? attRecord.status : 'present';
+  document.querySelectorAll('.att-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.status === currentStatus);
+  });
+
+  // 긍정 행동 버튼 생성
+  const posContainer = document.getElementById('positiveBtns');
+  posContainer.innerHTML = '';
+  BEHAVIOR_TYPES.positive.forEach(bType => {
+    const btn = document.createElement('button');
+    btn.className = 'beh-btn positive';
+    btn.innerHTML = `${bType.emoji} ${bType.label}`;
+    btn.addEventListener('click', () => {
+      saveBehavior(studentId, 'positive', bType.label, bType.emoji);
+      btn.classList.add('clicked');
+      setTimeout(() => btn.classList.remove('clicked'), 300);
+      showToast(`✅ ${bType.label} 기록됨`, 'success');
+      renderRecentRecords(studentId);
+      // 자리 배치도 점 업데이트
+      updateBehaviorDots(studentId);
+    });
+    posContainer.appendChild(btn);
+  });
+
+  // 부정/개선 행동 버튼 생성
+  const negContainer = document.getElementById('negativeBtns');
+  negContainer.innerHTML = '';
+  BEHAVIOR_TYPES.negative.forEach(bType => {
+    const btn = document.createElement('button');
+    btn.className = 'beh-btn negative';
+    btn.innerHTML = `${bType.emoji} ${bType.label}`;
+    btn.addEventListener('click', () => {
+      saveBehavior(studentId, 'negative', bType.label, bType.emoji);
+      btn.classList.add('clicked');
+      setTimeout(() => btn.classList.remove('clicked'), 300);
+      showToast(`⚠️ ${bType.label} 기록됨`, 'warning');
+      renderRecentRecords(studentId);
+      updateBehaviorDots(studentId);
+    });
+    negContainer.appendChild(btn);
+  });
+
+  // 메모 초기화
+  document.getElementById('behaviorNote').value = '';
+
+  // 최근 기록 표시
+  renderRecentRecords(studentId);
+
+  // 모달 열기
+  document.getElementById('behaviorModal').classList.remove('hidden');
 }
 
-function getAllBehaviorTypes() {
-  const types = [];
-  Object.values(BEHAVIOR_TYPES).forEach(arr => arr.forEach(t => types.push(t)));
-  return types;
-}
+/** 행동 기록 저장 */
+function saveBehavior(studentId, type, label, emoji = '') {
+  const cls = getCurrentClass();
+  if (!cls) return;
 
-function recordBehavior(label, emoji, type) {
-  const modal = document.getElementById('behaviorModal');
-  if (!modal) return;
-  const studentId = modal.dataset.studentId;
-  if (!studentId) return;
-
-  window.appState.behaviors.push({
+  const record = {
     id: generateId(),
     studentId,
+    classId: cls.id,
     date: todayStr(),
+    time: new Date().toTimeString().slice(0, 5),
+    type,   // 'positive' | 'negative' | 'note'
     label,
     emoji,
-    type,
-    classId: window.appState.currentClassId,
-    timestamp: Date.now()
-  });
+    note: '',
+  };
+  appState.behaviors.push(record);
   saveState();
-  renderModalBehaviorList(studentId);
-  renderBehaviorTable();
-  if (typeof showToast === 'function') showToast(emoji + ' ' + label + ' \uAE30\uB85D \uC644\uB8CC');
 }
 
-function deleteBehaviorRecord(idx, studentId) {
-  const today = todayStr();
-  const todayRecords = window.appState.behaviors
-    .map((b, i) => ({ ...b, _idx: i }))
-    .filter(b => b.studentId === studentId && b.date === today);
-  if (todayRecords[idx]) {
-    window.appState.behaviors.splice(todayRecords[idx]._idx, 1);
-    saveState();
-    renderModalBehaviorList(studentId);
-    renderBehaviorTable();
-  }
-}
-
-function closeBehaviorModal() {
-  document.getElementById('behaviorModal')?.classList.add('hidden');
-}
-
-function saveBehaviorMemo() {
-  const modal = document.getElementById('behaviorModal');
-  if (!modal) return;
-  const studentId = modal.dataset.studentId;
-  const memoEl = document.getElementById('behaviorMemo');
-  if (!studentId || !memoEl) return;
+/** 최근 기록 렌더링 */
+function renderRecentRecords(studentId) {
   const cls = getCurrentClass();
   if (!cls) return;
-  const student = cls.students.find(s => s.id === studentId);
-  if (student) {
-    student.memo = memoEl.value;
-    saveState();
-    if (typeof showToast === 'function') showToast('\uBA54\uBAA8\uAC00 \uC800\uC7A5\uB418\uC5C8\uC2B5\uB2C8\uB2E4.');
-  }
-}
+  const container = document.getElementById('recentRecords');
 
-function toggleBulkMode() {
-  bulkMode = !bulkMode;
-  bulkSelected.clear();
-  const btn = document.getElementById('btnBulkMode');
-  if (btn) btn.textContent = bulkMode ? '\u2717 \uC77C\uAD04\uBAA8\uB4DC \uD574\uC81C' : '\u2611 \uC77C\uAD04 \uAE30\uB85D';
-  if (typeof renderSeating === 'function') renderSeating();
-}
+  // 최근 30일 기록을 최신순으로
+  const records = appState.behaviors
+    .filter(b => b.studentId === studentId && b.classId === cls.id)
+    .sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time))
+    .slice(0, 10);
 
-function renderBehaviorTable() {
-  const container = document.getElementById('behaviorTableContainer');
-  if (!container) return;
-  const cls = getCurrentClass();
-  if (!cls) {
-    container.innerHTML = '<p class="help-text">\uBC18\uC744 \uC120\uD0DD\uD558\uC138\uC694.</p>';
+  if (records.length === 0) {
+    container.innerHTML = '<div class="empty-state">기록이 없습니다.</div>';
     return;
   }
-  const today = todayStr();
-  const date = document.getElementById('behaviorDateFilter')?.value || today;
 
-  const rows = cls.students.map(s => {
-    const records = window.appState.behaviors.filter(b => b.studentId === s.id && b.date === date);
-    const pos = records.filter(b => b.type === 'positive').length;
-    const neg = records.filter(b => b.type === 'negative').length;
-    const labels = records.map(b => (b.emoji || '') + b.label).join(', ');
-    return '<tr>'
-      + '<td>' + (s.number || '') + '</td>'
-      + '<td>' + s.name + '</td>'
-      + '<td style="color:var(--positive)">' + pos + '</td>'
-      + '<td style="color:var(--danger)">' + neg + '</td>'
-      + '<td class="behavior-labels">' + labels + '</td>'
-      + '</tr>';
+  container.innerHTML = records.map(r => `
+    <div class="record-item">
+      <span class="record-date">${formatDate(r.date)} ${r.time || ''}</span>
+      <span class="type-badge ${r.type === 'positive' ? 'type-positive' : r.type === 'negative' ? 'type-negative' : 'type-note'}">
+        ${r.emoji || ''} ${r.label}
+      </span>
+      ${r.note ? `<span class="record-note">${r.note}</span>` : ''}
+      <button class="btn-delete-record" onclick="deleteBehaviorRecord('${r.id}', '${studentId}')">✕</button>
+    </div>
+  `).join('');
+}
+
+/** 행동 기록 삭제 */
+function deleteBehaviorRecord(recordId, studentId) {
+  appState.behaviors = appState.behaviors.filter(b => b.id !== recordId);
+  saveState();
+  renderRecentRecords(studentId);
+  updateBehaviorDots(studentId);
+  showToast('기록이 삭제되었습니다.');
+}
+
+/** 자리 배치도의 행동 기록 점 업데이트 */
+function updateBehaviorDots(studentId) {
+  const card = document.querySelector(`.student-card[data-student-id="${studentId}"]`);
+  if (!card) return;
+  const existingDots = card.querySelector('.behavior-dots');
+  if (existingDots) existingDots.remove();
+  const behaviors = getStudentBehaviorsToday(studentId);
+  const dotsHtml = getBehaviorDotsHtml(behaviors);
+  if (dotsHtml) card.insertAdjacentHTML('beforeend', dotsHtml);
+}
+
+/** 행동 기록 테이블 렌더링 (탭3) */
+function renderBehaviorTable() {
+  const cls = getCurrentClass();
+  const container = document.getElementById('behaviorTable');
+  const filterStudent = document.getElementById('filterStudent');
+  const filterBehavior = document.getElementById('filterBehavior');
+
+  // 필터 드롭다운 학생 목록 갱신
+  const currentStudentFilter = filterStudent.value;
+  filterStudent.innerHTML = '<option value="">전체 학생</option>';
+  if (cls) {
+    cls.students.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = `${s.number}번 ${s.name}`;
+      if (s.id === currentStudentFilter) opt.selected = true;
+      filterStudent.appendChild(opt);
+    });
+  }
+
+  // 행동 유형 필터 갱신
+  const currentBehFilter = filterBehavior.value;
+  filterBehavior.innerHTML = '<option value="">전체 행동</option>';
+  const allTypes = [...BEHAVIOR_TYPES.positive, ...BEHAVIOR_TYPES.negative];
+  allTypes.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t.label;
+    opt.textContent = `${t.emoji} ${t.label}`;
+    if (t.label === currentBehFilter) opt.selected = true;
+    filterBehavior.appendChild(opt);
   });
 
-  container.innerHTML = '<table class="behavior-table">'
-    + '<thead><tr><th>\uBC88\uD638</th><th>\uC774\uB984</th><th>\uCE6D\uCC2C</th><th>\uAC1C\uC120</th><th>\uB0B4\uC6A9</th></tr></thead>'
-    + '<tbody>' + rows.join('') + '</tbody>'
-    + '</table>';
+  if (!cls) {
+    container.innerHTML = '<div class="empty-state">학급을 선택하세요.</div>';
+    return;
+  }
+
+  // 필터 적용
+  const sFilter = filterStudent.value;
+  const bFilter = filterBehavior.value;
+  const dateFrom = document.getElementById('filterDateFrom').value;
+  const dateTo = document.getElementById('filterDateTo').value;
+
+  let records = appState.behaviors.filter(b => b.classId === cls.id);
+  if (sFilter) records = records.filter(b => b.studentId === sFilter);
+  if (bFilter) records = records.filter(b => b.label === bFilter);
+  if (dateFrom) records = records.filter(b => b.date >= dateFrom);
+  if (dateTo) records = records.filter(b => b.date <= dateTo);
+
+  // 최신순 정렬
+  records.sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time));
+
+  if (records.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">📝</div>기록이 없습니다.</div>';
+    return;
+  }
+
+  const studentMap = {};
+  cls.students.forEach(s => studentMap[s.id] = s);
+
+  container.innerHTML = `
+    <table class="behavior-table">
+      <thead>
+        <tr>
+          <th>날짜</th>
+          <th>시간</th>
+          <th>번호</th>
+          <th>이름</th>
+          <th>유형</th>
+          <th>행동</th>
+          <th>메모</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        ${records.map(r => {
+          const student = studentMap[r.studentId];
+          const sName = student ? student.name : '(삭제된 학생)';
+          const sNum = student ? student.number : '-';
+          return `
+            <tr>
+              <td>${formatDate(r.date)}</td>
+              <td>${r.time || '-'}</td>
+              <td>${sNum}</td>
+              <td>${sName}</td>
+              <td>
+                <span class="type-badge ${r.type === 'positive' ? 'type-positive' : r.type === 'negative' ? 'type-negative' : 'type-note'}">
+                  ${r.type === 'positive' ? '긍정' : r.type === 'negative' ? '개선' : '메모'}
+                </span>
+              </td>
+              <td>${r.emoji || ''} ${r.label}</td>
+              <td>${r.note || '-'}</td>
+              <td>
+                <button class="btn-delete-record" onclick="deleteBehaviorFromTable('${r.id}')">✕</button>
+              </td>
+            </tr>
+          `;
+        }).join('')}
+      </tbody>
+    </table>
+  `;
 }
 
-function exportBehaviorCsv() {
+/** 테이블에서 행동 기록 삭제 */
+function deleteBehaviorFromTable(recordId) {
+  appState.behaviors = appState.behaviors.filter(b => b.id !== recordId);
+  saveState();
+  renderBehaviorTable();
+  showToast('기록이 삭제되었습니다.');
+}
+
+// ── 행동 기록 UI 이벤트 ──
+document.addEventListener('DOMContentLoaded', () => {
+  // 모달 닫기
+  document.getElementById('btnCloseModal').addEventListener('click', () => {
+    document.getElementById('behaviorModal').classList.add('hidden');
+    currentModalStudentId = null;
+  });
+
+  // 출결 버튼 (모달 내)
+  document.querySelectorAll('.att-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (!currentModalStudentId) return;
+      const cls = getCurrentClass();
+      if (!cls) return;
+      const status = btn.dataset.status;
+      setAttendance(currentModalStudentId, cls.id, todayStr(), status);
+      document.querySelectorAll('.att-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      updateSeatAttendanceBadge(currentModalStudentId, status);
+      showToast(`출결 상태: ${ATTENDANCE_STATUS[status].label}`, 'success');
+    });
+  });
+
+  // 메모 저장
+  document.getElementById('btnSaveNote').addEventListener('click', () => {
+    if (!currentModalStudentId) return;
+    const note = document.getElementById('behaviorNote').value.trim();
+    if (!note) { showToast('메모 내용을 입력하세요.', 'error'); return; }
+
+    const cls = getCurrentClass();
+    if (!cls) return;
+    const record = {
+      id: generateId(),
+      studentId: currentModalStudentId,
+      classId: cls.id,
+      date: todayStr(),
+      time: new Date().toTimeString().slice(0, 5),
+      type: 'note',
+      label: '메모',
+      emoji: '📝',
+      note,
+    };
+    appState.behaviors.push(record);
+    saveState();
+    document.getElementById('behaviorNote').value = '';
+    renderRecentRecords(currentModalStudentId);
+    showToast('메모가 저장되었습니다.', 'success');
+  });
+
+  // 행동 기록 조회 버튼
+  document.getElementById('btnFilterBehavior').addEventListener('click', renderBehaviorTable);
+
+  // 나이스용 복사
+  document.getElementById('btnCopyNeis').addEventListener('click', copyNeisText);
+
+  // CSV 내보내기
+  document.getElementById('btnExportBehavior').addEventListener('click', () => {
+    const cls = getCurrentClass();
+    if (!cls) return;
+    exportBehaviorCsv(cls);
+  });
+
+  // 일괄 기록 버튼
+  document.getElementById('btnBulkMode').addEventListener('click', toggleBulkMode);
+  document.getElementById('btnCloseBulkBar').addEventListener('click', toggleBulkMode);
+  document.getElementById('btnSelectAll').addEventListener('click', bulkSelectAll);
+  document.getElementById('btnClearSelection').addEventListener('click', bulkClearSelection);
+});
+
+/** 일괄 기록 모드 토글 */
+function toggleBulkMode() {
+  appState.isBulkMode = !appState.isBulkMode;
+  document.body.classList.toggle('bulk-mode-active', appState.isBulkMode);
+  
+  const bar = document.getElementById('bulkActionBar');
+  const btn = document.getElementById('btnBulkMode');
+  
+  if (appState.isBulkMode) {
+    bar.classList.remove('hidden');
+    btn.classList.add('mode-btn-active');
+    renderBulkActionButtons();
+    showToast('✅ 일괄 기록 모드: 학생들을 클릭하여 선택한 후 하단 버튼을 누르세요.', 'info');
+  } else {
+    bar.classList.add('hidden');
+    btn.classList.remove('mode-btn-active');
+    bulkClearSelection();
+    showToast('일괄 기록 모드가 종료되었습니다.');
+  }
+  renderSeating();
+}
+
+/** 일괄 선택 클릭 처리 */
+function handleBulkClick(studentId) {
+  const idx = appState.selectedStudentIds.indexOf(studentId);
+  if (idx > -1) {
+    appState.selectedStudentIds.splice(idx, 1);
+  } else {
+    appState.selectedStudentIds.push(studentId);
+  }
+  updateBulkCount();
+  renderSeating();
+}
+
+/** 선택 인원 표시 업데이트 */
+function updateBulkCount() {
+  document.getElementById('selectedCount').textContent = appState.selectedStudentIds.length;
+}
+
+/** 전체 선택 */
+function bulkSelectAll() {
   const cls = getCurrentClass();
   if (!cls) return;
-  const today = todayStr();
-  const date = document.getElementById('behaviorDateFilter')?.value || today;
-  const rows = ['\uBC88\uD638,\uC774\uB984,\uC720\uD615,\uB0B4\uC6A9,\uB0A0\uC9DC'];
-  window.appState.behaviors
-    .filter(b => b.classId === cls.id && b.date === date)
-    .forEach(b => {
-      const s = cls.students.find(st => st.id === b.studentId);
-      rows.push([(s?.number || ''), (s?.name || ''), b.type, b.label, b.date].join(','));
-    });
-  if (typeof downloadCsv === 'function') {
-    downloadCsv(rows.join('\n'), '\uD589\uB3D9\uAE30\uB85D_' + date + '.csv');
-  }
+  appState.selectedStudentIds = cls.students.map(s => s.id);
+  updateBulkCount();
+  renderSeating();
 }
 
-// window 전역 등록
-window.openBehaviorModal = openBehaviorModal;
-window.recordBehavior = recordBehavior;
-window.deleteBehaviorRecord = deleteBehaviorRecord;
-window.closeBehaviorModal = closeBehaviorModal;
-window.saveBehaviorMemo = saveBehaviorMemo;
-window.toggleBulkMode = toggleBulkMode;
-window.renderBehaviorTable = renderBehaviorTable;
-window.exportBehaviorCsv = exportBehaviorCsv;
+/** 선택 해제 */
+function bulkClearSelection() {
+  appState.selectedStudentIds = [];
+  updateBulkCount();
+  renderSeating();
+}
+
+/** 일괄 기록 버튼 생성 */
+function renderBulkActionButtons() {
+  const posCont = document.getElementById('bulkPositiveBtns');
+  const negCont = document.getElementById('bulkNegativeBtns');
+  posCont.innerHTML = '';
+  negCont.innerHTML = '';
+
+  BEHAVIOR_TYPES.positive.forEach(b => {
+    const btn = document.createElement('button');
+    btn.className = 'bulk-beh-btn';
+    btn.textContent = `${b.emoji} ${b.label}`;
+    btn.onclick = () => saveBulkBehavior('positive', b.label, b.emoji);
+    posCont.appendChild(btn);
+  });
+
+  BEHAVIOR_TYPES.negative.forEach(b => {
+    const btn = document.createElement('button');
+    btn.className = 'bulk-beh-btn';
+    btn.textContent = `${b.emoji} ${b.label}`;
+    btn.onclick = () => saveBulkBehavior('negative', b.label, b.emoji);
+    negCont.appendChild(btn);
+  });
+}
+
+/** 일괄 저장 실행 */
+function saveBulkBehavior(type, label, emoji) {
+  if (appState.selectedStudentIds.length === 0) {
+    showToast('선택된 학생이 없습니다.', 'error');
+    return;
+  }
+
+  if (!confirm(`${appState.selectedStudentIds.length}명에게 일괄 기록하시겠습니까?\n(${label})`)) return;
+
+  appState.selectedStudentIds.forEach(sid => {
+    saveBehavior(sid, type, label, emoji);
+    updateBehaviorDots(sid);
+  });
+
+  showToast(`✅ ${appState.selectedStudentIds.length}명에게 일괄 기록 완료!`, 'success');
+  bulkClearSelection();
+}
+
+/** 나이스 입력용 텍스트 복사 */
+function copyNeisText() {
+  const cls = getCurrentClass();
+  if (!cls) return;
+  const filterStudentId = document.getElementById('filterStudent').value;
+
+  let records = appState.behaviors.filter(b => b.classId === cls.id && b.type !== 'note');
+  if (filterStudentId) records = records.filter(b => b.studentId === filterStudentId);
+
+  if (records.length === 0) {
+    showToast('복사할 기록이 없습니다.', 'error');
+    return;
+  }
+
+  const studentMap = {};
+  cls.students.forEach(s => studentMap[s.id] = s);
+
+  // 학생별 그룹화
+  const grouped = {};
+  records.forEach(r => {
+    if (!grouped[r.studentId]) grouped[r.studentId] = { positive: [], negative: [] };
+    grouped[r.studentId][r.type].push(r.label);
+  });
+
+  let text = '';
+  Object.entries(grouped).forEach(([sid, data]) => {
+    const s = studentMap[sid];
+    if (!s) return;
+    text += `[${s.number}번 ${s.name}]\n`;
+    if (data.positive.length > 0) {
+      text += `- 우수: ${[...new Set(data.positive)].join(', ')}\n`;
+    }
+    if (data.negative.length > 0) {
+      text += `- 개선: ${[...new Set(data.negative)].join(', ')}\n`;
+    }
+    text += '\n';
+  });
+
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('나이스 입력용 텍스트가 복사되었습니다.', 'success');
+  });
+}
+
+/** 행동 기록 CSV 내보내기 */
+function exportBehaviorCsv(cls) {
+  let records = appState.behaviors.filter(b => b.classId === cls.id);
+  const sFilter = document.getElementById('filterStudent').value;
+  const bFilter = document.getElementById('filterBehavior').value;
+  if (sFilter) records = records.filter(b => b.studentId === sFilter);
+  if (bFilter) records = records.filter(b => b.label === bFilter);
+
+  const studentMap = {};
+  cls.students.forEach(s => studentMap[s.id] = s);
+
+  let csv = '날짜,번호,이름,유형,행동,메모\n';
+  records.sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+  records.forEach(r => {
+    const s = studentMap[r.studentId];
+    const sNum = s ? s.number : '-';
+    const sName = s ? s.name : '삭제된학생';
+    const type = r.type === 'positive' ? '긍정' : r.type === 'negative' ? '개선' : '메모';
+    csv += `${r.date},${sNum},"${sName}","${type}","${r.label}","${r.note || ''}"\n`;
+  });
+  downloadCsv(csv, `행동기록_${cls.name}.csv`);
+  showToast('행동 기록 CSV가 다운로드되었습니다.', 'success');
+}

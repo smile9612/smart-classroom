@@ -2,8 +2,8 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>스마트 교실 관리 v1.4.0</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>스마트 교실 관리 시스템</title>
   <meta name="description" content="드래그 앤 드롭 자리 배치, 원클릭 행동 기록, 출결 관리, 나이스 연계 CSV 내보내기를 지원하는 교사용 스마트 교실 관리 도구" />
   
   <!-- PWA 설정 (안드로이드, 크롬) -->
@@ -19,7 +19,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" crossorigin href="./assets/index-CW-Q6Px3.css">
+  <script type="module" crossorigin src="./assets/index-DhVMAbVO.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-C9IRPdkM.css">
 </head>
 <body>
 
@@ -87,7 +88,6 @@
             <button id="btnApplyGrid" class="btn btn-primary btn-sm">격자 적용</button>
             <button id="btnShuffleSeats" class="btn btn-secondary btn-sm">🔀 랜덤 배치</button>
             <button id="btnSmartArrange" class="btn btn-secondary btn-sm">✨ 스마트 배치(성별)</button>
-            <button id="btnUndoSeating" class="btn btn-ghost btn-sm" title="직전 자리 배치로 되돌립니다.">↩ 되돌리기</button>
             <button id="btnClearSeats" class="btn btn-ghost btn-sm">자리 초기화</button>
           </div>
           <div class="seat-mode-controls">
@@ -95,6 +95,7 @@
               <input type="checkbox" id="toggleShowNumbers" checked />
               <span>번호 표시</span>
             </label>
+            <button id="btnSwapMode" class="btn btn-ghost btn-sm" title="두 학생의 자리를 교환합니다.">🔄 교체 모드</button>
             <button id="btnGenderMode" class="btn btn-ghost btn-sm" title="클릭하면 자리 성별 제한 설정 모드가 활성화됩니다. 이후 빈 자리를 클릭하면 성별 제한이 순환됩니다.">⚥ 성별 자리 설정</button>
             <button id="btnBulkMode" class="btn btn-ghost btn-sm" title="여러 명을 선택하여 행동을 일괄 기록합니다.">✅ 일괄 기록</button>
             <span id="modeStatus" class="mode-status-badge"></span>
@@ -190,7 +191,6 @@
             <button id="btnFilterBehavior" class="btn btn-primary btn-sm">조회</button>
           </div>
           <div class="behavior-actions">
-            <button id="btnExportLifeRecord2" class="btn btn-accent btn-sm">📜 생활기록 리포트</button>
             <button id="btnExportBehavior" class="btn btn-secondary btn-sm">📥 CSV 내보내기</button>
             <button id="btnCopyNeis" class="btn btn-ghost btn-sm">📋 나이스용 복사</button>
           </div>
@@ -232,18 +232,6 @@
                 <option value="secondary" selected>중·고등학교 (8교시)</option>
               </select>
             </div>
-            <hr style="border:0; border-top:1px solid var(--border); margin:15px 0;">
-            <div class="config-row" style="flex-direction:column; align-items:flex-start; gap:8px;">
-              <p style="font-size:0.85rem; font-weight:700;">🔔 아침 수업 안내 알림</p>
-              <div style="display:flex; align-items:center; gap:10px; width:100%;">
-                <input type="time" id="morningNotifyTime" class="form-input" value="08:30" style="width:140px;">
-                <label class="toggle-label" style="font-size:0.8rem;">
-                  <input type="checkbox" id="morningNotifyEnabled" checked />
-                  <span>사용 설정</span>
-                </label>
-              </div>
-              <p class="config-help">매일 아침 설정된 시간에 오늘의 시간표를 팝업으로 안내합니다.</p>
-            </div>
           </div>
 
           <!-- 2. 교시별 시정 설정 -->
@@ -259,23 +247,6 @@
             <h3>📊 학급별 기준 시수</h3>
             <div id="classTargetHoursList" class="target-hours-list">
               <!-- JS에서 동적 생성 -->
-            </div>
-            <hr style="border:0; border-top:1px solid var(--border); margin:15px 0;">
-            <div class="batch-grade-wrap">
-              <p style="font-size:0.83rem; font-weight:700; margin-bottom:10px;">📈 학년별 시수 일괄 입력</p>
-              <div style="display:flex; gap:6px;">
-                <select id="batchGradeSelect" class="form-select" style="width:100px;">
-                  <option value="1">1학년</option>
-                  <option value="2">2학년</option>
-                  <option value="3">3학년</option>
-                  <option value="4">4학년</option>
-                  <option value="5">5학년</option>
-                  <option value="6">6학년</option>
-                </select>
-                <input type="number" id="batchGradeHours" class="form-input" placeholder="시수" style="flex:1; min-width:80px;">
-                <button id="btnBatchGradeApply" class="btn btn-secondary btn-sm">적용</button>
-              </div>
-              <p class="config-help">해당 학년의 모든 반에 동일한 시수가 적용됩니다.</p>
             </div>
           </div>
         </div>
@@ -373,12 +344,11 @@
         <div class="export-section">
           <h3>📥 데이터 내보내기</h3>
           <div class="export-buttons">
-            <button id="btnExportAllBehavior" class="btn btn-primary">행동기록 전체 (CSV)</button>
-            <button id="btnExportAllAttendance" class="btn btn-secondary">출결기록 전체 (CSV)</button>
-            <button id="btnExportNeis" class="btn btn-accent">나이스용 (CSV)</button>
-            <button id="btnExportLifeRecord" class="btn btn-primary" style="background:var(--positive);">📋 생활기록용 리포트</button>
-            <button id="btnBackupData" class="btn btn-ghost">💾 전체 백업 (JSON)</button>
-            <button id="btnRestoreData" class="btn btn-ghost">📂 복원 (JSON)</button>
+            <button id="btnExportAllBehavior" class="btn btn-primary">행동기록 전체 내보내기 (CSV)</button>
+            <button id="btnExportAllAttendance" class="btn btn-secondary">출결기록 전체 내보내기 (CSV)</button>
+            <button id="btnExportNeis" class="btn btn-accent">나이스 입력용 내보내기</button>
+            <button id="btnBackupData" class="btn btn-ghost">💾 전체 데이터 백업 (JSON)</button>
+            <button id="btnRestoreData" class="btn btn-ghost">📂 데이터 복원 (JSON)</button>
           </div>
           <input type="file" id="restoreInput" accept=".json" class="hidden" />
         </div>
@@ -560,108 +530,8 @@
       </div>
     </div>
   </div>
-  <!-- ===== 리포트 설정 모달 (Step 1) ===== -->
-  <div id="reportConfigModal" class="modal-overlay hidden">
-    <div class="modal-content report-config-modal">
-      <div class="modal-header">
-        <h2>📜 리포트 생성 설정</h2>
-        <button id="btnCloseReportConfig" class="btn-close">✕</button>
-      </div>
-      <div class="modal-body">
-        <section class="config-section">
-          <h3>👥 1. 대상 학생 선택</h3>
-          <div class="filter-actions">
-            <button id="btnSelectAllStudents" class="btn btn-ghost btn-sm">전체 선택</button>
-            <button id="btnSelectNegativeOnly" class="btn btn-ghost btn-sm" style="color:var(--danger)">개선 필요 학생만</button>
-            <button id="btnDeselectAllStudents" class="btn btn-ghost btn-sm">해제</button>
-          </div>
-          <div id="reportStudentList" class="student-checker-grid">
-            <!-- 학생 목록 동적 생성 -->
-          </div>
-        </section>
-
-        <section class="config-section">
-          <h3>📅 2. 기간 및 그룹화</h3>
-          <div class="radio-group">
-            <label class="radio-item"><input type="radio" name="reportGroup" value="student" checked> 👤 학생별 (1인 1매)</label>
-            <label class="radio-item"><input type="radio" name="reportGroup" value="day"> 📅 날짜별</label>
-            <label class="radio-item"><input type="radio" name="reportGroup" value="week"> 🗓️ 주별 (월~금)</label>
-            <label class="radio-item"><input type="radio" name="reportGroup" value="month"> 📊 월별</label>
-          </div>
-        </section>
-
-        <section class="config-section">
-          <h3>🎨 3. 레이아웃 및 옵션</h3>
-          <div class="options-grid">
-            <div>
-              <label>출력 레이아웃:</label>
-              <select id="reportLayout" class="form-input">
-                <option value="card">프리미엄 카드형 (권장)</option>
-                <option value="table">간결한 표(Table)형</option>
-              </select>
-            </div>
-            <div class="toggle-item">
-              <label class="switch">
-                <input type="checkbox" id="transformFormal" checked>
-                <span class="slider"></span>
-              </label>
-              <span>나이스용 공식 문구로 자동 변환</span>
-            </div>
-          </div>
-        </section>
-      </div>
-      <div class="modal-footer">
-        <button id="btnGenerateAdvancedReport" class="btn btn-primary btn-lg" style="width:100%">🚀 리포트 생성 시작</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ===== 공식 상투어 관리 모달 ===== -->
-  <div id="phraseManageModal" class="modal-overlay hidden">
-    <div class="modal-content phrase-manage-modal">
-      <div class="modal-header">
-        <h2>🛠️ 행동특성 상투어 관리</h2>
-        <button id="btnClosePhraseManage" class="btn-close">✕</button>
-      </div>
-      <div class="modal-body">
-        <p class="help-text">각 행동 항목을 클릭하여 자동으로 변환될 공식 문구들을 관리하세요.</p>
-        <div class="phrase-layout">
-          <div class="phrase-category-list">
-            <div class="cat-group">
-              <h4>✨ 긍정 행동</h4>
-              <div id="posPhraseCats"></div>
-            </div>
-            <div class="cat-group">
-              <h4>⚠️ 개선 필요</h4>
-              <div id="negPhraseCats"></div>
-            </div>
-          </div>
-          <div class="phrase-edit-area">
-            <h4 id="currentEditingCatName">항목을 선택하세요</h4>
-            <div id="phraseListContainer" class="phrase-list"></div>
-            <div class="phrase-add-box">
-              <input type="text" id="newPhraseInput" class="form-input" placeholder="새로운 공문 문구 입력...">
-              <button id="btnAddPhrase" class="btn btn-primary">추가</button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button id="btnResetPhrases" class="btn btn-ghost" style="color:var(--danger)">기본값으로 초기화</button>
-        <button id="btnSavePhrases" class="btn btn-primary">변경 사항 저장</button>
-      </div>
-    </div>
-  </div>
 
   <!-- ===== JS 로드 ===== -->
-  <script src="js/phrases.js"></script>
-  <script src="js/app.js"></script>
-  <script src="js/students.js"></script>
-  <script src="js/seating.js"></script>
-  <script src="js/attendance.js"></script>
-  <script src="js/behavior.js"></script>
-  <script src="js/timetable.js"></script>
-  <script src="js/export.js"></script>
   
   <!-- 서비스 워커 등록 -->
   <script>

@@ -369,16 +369,11 @@
       <p class="bulk-label">개선:</p>
       <div id="bulkNegativeBtns" class="bulk-btn-group"></div>
     </div>
-    <button id="btnCloseBulkBar" class="btn-close-bar">✕</button>
-  </div>
-
-  <!-- 일괄 기록 하단 바: 메모 입력 -->
-  <div id="bulkActionBar2" class="bulk-action-bar hidden" style="bottom:60px;">
-    <div class="bulk-info" style="flex:1; display:flex; gap:8px; align-items:center;">
-      <span>✏️ 선택된 <span id="selectedCount2">0</span>명에게 메모 일괄 저장:</span>
-      <input type="text" id="bulkMemoInput" class="form-input" placeholder="메모 내용 입력..." style="flex:1; min-width:200px;">
-      <button id="btnBulkSaveMemo" class="btn btn-primary btn-sm">📝 메모 저장</button>
+    <div class="bulk-memo-row" style="display:flex; gap:6px; align-items:center; margin-left:10px; border-left:1px solid var(--border); padding-left:10px;">
+      <input type="text" id="bulkMemoInput" class="form-input" placeholder="메모 입력..." style="width:180px; height:30px; font-size:0.8rem;">
+      <button id="btnBulkSaveMemo" class="btn btn-primary btn-sm" style="white-space:nowrap;">📝 메모</button>
     </div>
+    <button id="btnCloseBulkBar" class="btn-close-bar">✕</button>
   </div>
 
   <!-- ===== 행동 기록 모달 ===== -->

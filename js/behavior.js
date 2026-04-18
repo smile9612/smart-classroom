@@ -336,18 +336,15 @@ function toggleBulkMode() {
   document.body.classList.toggle('bulk-mode-active', appState.isBulkMode);
   
   const bar = document.getElementById('bulkActionBar');
-  const bar2 = document.getElementById('bulkActionBar2');
   const btn = document.getElementById('btnBulkMode');
   
   if (appState.isBulkMode) {
     bar.classList.remove('hidden');
-    if (bar2) bar2.classList.remove('hidden');
     btn.classList.add('mode-btn-active');
     renderBulkActionButtons();
     showToast('✅ 일괄 기록 모드: 학생들을 클릭하여 선택한 후 하단 버튼을 누르세요.', 'info');
   } else {
     bar.classList.add('hidden');
-    if (bar2) bar2.classList.add('hidden');
     btn.classList.remove('mode-btn-active');
     bulkClearSelection();
     showToast('일괄 기록 모드가 종료되었습니다.');
@@ -370,8 +367,6 @@ function handleBulkClick(studentId) {
 /** 선택 인원 표시 업데이트 */
 function updateBulkCount() {
   document.getElementById('selectedCount').textContent = appState.selectedStudentIds.length;
-  const cnt2 = document.getElementById('selectedCount2');
-  if (cnt2) cnt2.textContent = appState.selectedStudentIds.length;
 }
 
 /** 전체 선택 */

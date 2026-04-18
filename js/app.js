@@ -65,9 +65,9 @@ let appState = {
     morningNotifyTime: "08:40",
     autoTransitionMode: "guide" // "guide" 또는 "auto"
   },
-  counselingRecords: [],   // 상담일지 기록 목록
-  holidays: [],            // { date: "YYYY-MM-DD", label: "이유" }
-  theme: 'dark'            // 테마 ('dark' 또는 'light')
+  theme: 'dark',           // 테마 ('dark' 또는 'light')
+  sidebarCollapsed: false, // 사이드바 숨김 상태
+  tabsCollapsed: false     // 탭 숨김 상태
 };
 
 // ── 전역 앱 관리 객체 ──
@@ -274,6 +274,39 @@ function applyTheme() {
   } else {
     document.body.classList.remove('light-mode');
     document.getElementById('btnThemeToggle').textContent = '🌙';
+  }
+}
+
+// ── 레이아웃 토글 제어 ──
+
+/** 사이드바 토글 */
+function toggleSidebar() {
+  appState.sidebarCollapsed = !appState.sidebarCollapsed;
+  applyLayoutSettings();
+  saveState();
+  const msg = appState.sidebarCollapsed ? '학생 명단이 숨겨졌습니다.' : '학생 명단이 다시 보입니다.';
+  showToast(msg, 'info');
+}
+
+/** 탭 네비게이션 토글 */
+function toggleTabs() {
+  appState.tabsCollapsed = !appState.tabsCollapsed;
+  applyLayoutSettings();
+  saveState();
+  const msg = appState.tabsCollapsed ? '상단 메뉴가 숨겨졌습니다.' : '상단 메뉴가 다시 보입니다.';
+  showToast(msg, 'info');
+}
+
+/** 레이아웃 설정 적용 */
+function applyLayoutSettings() {
+  const sidebar = document.querySelector('.student-sidebar');
+  if (sidebar) {
+    sidebar.classList.toggle('collapsed', !!appState.sidebarCollapsed);
+  }
+  
+  const tabNav = document.querySelector('.tab-nav');
+  if (tabNav) {
+    tabNav.classList.toggle('collapsed', !!appState.tabsCollapsed);
   }
 }
 
@@ -525,11 +558,21 @@ function initApp() {
   document.getElementById('btnCloseHelp').addEventListener('click', closeHelpModal);
   document.getElementById('btnConfirmHelp').addEventListener('click', closeHelpModal);
 
+  // 레이아웃 토글 버튼
+  const btnToggleSidebar = document.getElementById('btnToggleSidebar');
+  if (btnToggleSidebar) btnToggleSidebar.addEventListener('click', toggleSidebar);
+  
+  const btnToggleTabs = document.getElementById('btnToggleTabs');
+  if (btnToggleTabs) btnToggleTabs.addEventListener('click', toggleTabs);
+
   // 모달 배경 클릭 시 닫기
   document.getElementById('helpModal').addEventListener('click', (e) => {
     if (e.target.id === 'helpModal') closeHelpModal();
   });
 
+  // 초기 레이아웃 적용
+  applyLayoutSettings();
+  
   // 테마 초기화
   applyTheme();
 

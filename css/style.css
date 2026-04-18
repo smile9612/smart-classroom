@@ -176,6 +176,16 @@ body {
   border-bottom: 1px solid var(--border);
   padding: 0 24px;
   gap: 4px;
+  transition: height 0.3s ease, padding 0.3s ease, opacity 0.3s ease, border-bottom-color 0.3s ease;
+  overflow: hidden;
+  height: 48px; /* 기본 높이 명시 */
+}
+.tab-nav.collapsed {
+  height: 0;
+  padding: 0 24px;
+  border-bottom-color: transparent;
+  opacity: 0;
+  pointer-events: none;
 }
 .tab-btn {
   background: none;
@@ -380,6 +390,15 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  transition: width 0.3s ease, min-width 0.3s ease, opacity 0.3s ease, border-left-color 0.3s ease;
+}
+
+.student-sidebar.collapsed {
+  width: 0;
+  min-width: 0;
+  border-left-color: transparent;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .sidebar-header {

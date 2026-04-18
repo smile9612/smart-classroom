@@ -490,97 +490,128 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('dragend', () => setTimeout(() => window._isDragging = false, 100));
 
   // 번호 표시 토글
-  document.getElementById('toggleShowNumbers').addEventListener('change', () => {
-    renderSeating();
-  });
+  const toggleShowNumbers = document.getElementById('toggleShowNumbers');
+  if (toggleShowNumbers) {
+    toggleShowNumbers.addEventListener('change', () => {
+      renderSeating();
+    });
+  }
 
   // 성별 자리 설정 모드 토글
-  document.getElementById('btnGenderMode').addEventListener('click', () => {
-    genderModeActive = !genderModeActive;
-    swapModeActive = false;
-    swapFirstKey = null;
-    const btn = document.getElementById('btnGenderMode');
-    const swapBtn = document.getElementById('btnSwapMode');
-    btn.classList.toggle('mode-btn-active', genderModeActive);
-    swapBtn.classList.remove('mode-btn-active');
-    updateModeStatus();
-    renderSeating();
-    if (genderModeActive) {
-      showToast('⚥ 성별 자리 설정 모드: 빈 자리를 클릭하면 성별 제한이 순환됩니다.', 'default', 4000);
-    }
-  });
-
-  // 교체 모드 토글
-  document.getElementById('btnSwapMode').addEventListener('click', () => {
-    swapModeActive = !swapModeActive;
-    genderModeActive = false;
-    swapFirstKey = null;
-    const btn = document.getElementById('btnSwapMode');
-    const genderBtn = document.getElementById('btnGenderMode');
-    btn.classList.toggle('mode-btn-active', swapModeActive);
-    genderBtn.classList.remove('mode-btn-active');
-    updateModeStatus();
-    renderSeating();
-    if (swapModeActive) {
-      showToast('🔄 교체 모드: 학생 두 명을 순서대로 클릭하면 자리가 바뀝니다.', 'default', 4000);
-    }
-  });
-
-  // 스마트 배치 버튼
-  document.getElementById('btnSmartArrange').addEventListener('click', smartAutoArrange);
-
-  // 랜덤 배치 버튼
-  document.getElementById('btnShuffleSeats').addEventListener('click', () => {
-    const cls = getCurrentClass();
-    if (!cls) return;
-    if (cls.students.length === 0) { showToast('학생을 먼저 추가하세요.', 'error'); return; }
-    if (!confirm('학생들의 자리를 무작위로 배치하시겠습니까?')) return;
-    
-    // 배치 전 현재 상태 백업 (되돌리기용)
-    backupSeats();
-    
-    const students = shuffleArray([...cls.students]);
-    cls.seats = {};
-    
-    // 칠판쪽(큰 행 번호)부터 채우기 위해 역순으로 키 수집
-    let availableKeys = [];
-    for (let r = cls.gridRows - 1; r >= 0; r--) {
-      for (let c = 0; c < cls.gridCols; c++) {
-        availableKeys.push(`${r}-${c}`);
-      }
-    }
-    
-    // 학생 수만큼만 잘라냄
-    availableKeys = availableKeys.slice(0, students.length);
-    
-    students.forEach((s, i) => {
-      if (i < availableKeys.length) {
-        cls.seats[availableKeys[i]] = s.id;
+  const btnGenderMode = document.getElementById('btnGenderMode');
+  if (btnGenderMode) {
+    btnGenderMode.addEventListener('click', () => {
+      genderModeActive = !genderModeActive;
+      swapModeActive = false;
+      swapFirstKey = null;
+      const btn = document.getElementById('btnGenderMode');
+      const swapBtn = document.getElementById('btnSwapMode');
+      if (btn) btn.classList.toggle('mode-btn-active', genderModeActive);
+      if (swapBtn) swapBtn.classList.remove('mode-btn-active');
+      updateModeStatus();
+      renderSeating();
+      if (genderModeActive) {
+        showToast('⚥ 성별 자리 설정 모드: 빈 자리를 클릭하면 성별 제한이 순환됩니다.', 'default', 4000);
       }
     });
+  }
 
-    saveState();
-    renderSeating();
-    showToast('자리가 칠판쪽부터 무작위로 배치되었습니다! 🎲', 'success');
-  });
+  // 교체 모드 토글
+  const btnSwapMode = document.getElementById('btnSwapMode');
+  if (btnSwapMode) {
+    btnSwapMode.addEventListener('click', () => {
+      swapModeActive = !swapModeActive;
+      genderModeActive = false;
+      swapFirstKey = null;
+      const btn = document.getElementById('btnSwapMode');
+      const genderBtn = document.getElementById('btnGenderMode');
+      if (btn) btn.classList.toggle('mode-btn-active', swapModeActive);
+      if (genderBtn) genderBtn.classList.remove('mode-btn-active');
+      updateModeStatus();
+      renderSeating();
+      if (swapModeActive) {
+        showToast('🔄 교체 모드: 학생 두 명을 순서대로 클릭하면 자리가 바뀝니다.', 'default', 4000);
+      }
+    });
+  }
+
+  // 스마트 배치 버튼
+  const btnSmartArrange = document.getElementById('btnSmartArrange');
+  if (btnSmartArrange) btnSmartArrange.addEventListener('click', smartAutoArrange);
+
+  // 랜덤 배치 버튼
+  const btnShuffleSeats = document.getElementById('btnShuffleSeats');
+  if (btnShuffleSeats) {
+    btnShuffleSeats.addEventListener('click', () => {
+      const cls = getCurrentClass();
+      if (!cls) return;
+      if (cls.students.length === 0) { showToast('학생을 먼저 추가하세요.', 'error'); return; }
+      if (!confirm('학생들의 자리를 무작위로 배치하시겠습니까?')) return;
+      
+      // 배치 전 현재 상태 백업 (되돌리기용)
+      backupSeats();
+      
+      const students = shuffleArray([...cls.students]);
+      cls.seats = {};
+      
+      // 칠판쪽(큰 행 번호)부터 채우기 위해 역순으로 키 수집
+      let availableKeys = [];
+      for (let r = cls.gridRows - 1; r >= 0; r--) {
+        for (let c = 0; c < cls.gridCols; c++) {
+          availableKeys.push(`${r}-${c}`);
+        }
+      }
+      
+      // 학생 수만큼만 잘라냄
+      availableKeys = availableKeys.slice(0, students.length);
+      
+      students.forEach((s, i) => {
+        if (i < availableKeys.length) {
+          cls.seats[availableKeys[i]] = s.id;
+        }
+      });
+
+      saveState();
+      renderSeating();
+      showToast('자리가 칠판쪽부터 무작위로 배치되었습니다! 🎲', 'success');
+    });
+  }
 
   // 되돌리기 버튼
-  document.getElementById('btnUndoSeating').addEventListener('click', undoSeats);
+  const btnUndoSeating = document.getElementById('btnUndoSeating');
+  if (btnUndoSeating) btnUndoSeating.addEventListener('click', undoSeats);
 
   // 랜덤 뽑기 버튼
-  document.getElementById('btnRandom').addEventListener('click', openRandomModal);
-  document.getElementById('btnCloseRandom').addEventListener('click', () => {
-    document.getElementById('randomModal').classList.add('hidden');
-    clearInterval(window._spinInterval);
-  });
-  document.getElementById('btnStartRandom').addEventListener('click', startRandom);
-  document.getElementById('btnPickAgain').addEventListener('click', () => {
-    document.getElementById('randomResult').classList.add('hidden');
-    document.getElementById('randomSpinner').textContent = '?';
-    document.getElementById('btnStartRandom').classList.remove('hidden');
-    document.getElementById('btnPickAgain').classList.add('hidden');
-    startRandom();
-  });
+  const btnRandom = document.getElementById('btnRandom');
+  if (btnRandom) {
+    btnRandom.addEventListener('click', openRandomModal);
+  }
+
+  const btnCloseRandom = document.getElementById('btnCloseRandom');
+  if (btnCloseRandom) {
+    btnCloseRandom.addEventListener('click', () => {
+      const modal = document.getElementById('randomModal');
+      if (modal) modal.classList.add('hidden');
+      clearInterval(window._spinInterval);
+    });
+  }
+
+  const btnStartRandom = document.getElementById('btnStartRandom');
+  if (btnStartRandom) btnStartRandom.addEventListener('click', startRandom);
+
+  const btnPickAgain = document.getElementById('btnPickAgain');
+  if (btnPickAgain) {
+    btnPickAgain.addEventListener('click', () => {
+      const result = document.getElementById('randomResult');
+      const spinner = document.getElementById('randomSpinner');
+      const startBtn = document.getElementById('btnStartRandom');
+      if (result) result.classList.add('hidden');
+      if (spinner) spinner.textContent = '?';
+      if (startBtn) startBtn.classList.remove('hidden');
+      if (btnPickAgain) btnPickAgain.classList.add('hidden');
+      startRandom();
+    });
+  }
 });
 
 // ── 자리 배치도 뱃지 단일 갱신 함수 (attendance.js, behavior.js 에서 호출) ──

@@ -28,8 +28,9 @@
   <!-- ===== 상단 헤더 ===== -->
   <header class="app-header">
     <div class="header-left">
+      <button id="btnToggleTabs" class="btn btn-ghost btn-sm" title="메뉴 토글" style="font-size: 1.2rem; margin-right: 5px;">☰</button>
       <span class="app-icon">🏫</span>
-      <h1 class="app-title">스마트 교실 관리 <small style="font-size: 0.65rem; color: var(--text-muted); font-weight: 400; vertical-align: bottom;">v1.7.0 (Auto-deploy)</small></h1>
+      <h1 class="app-title">스마트 교실 관리 <small style="font-size: 0.65rem; color: var(--text-muted); font-weight: 400; vertical-align: bottom;">v1.7.1 (Auto-deploy)</small></h1>
     </div>
     <div class="header-center">
       <!-- 학급 선택 드롭다운 -->
@@ -46,6 +47,7 @@
     </div>
     <div class="header-right">
       <span id="todayDisplay" class="today-badge"></span>
+      <button id="btnToggleSidebar" class="btn btn-ghost" title="명단 토글 (목록 숨김/보임)">📊 <span>명단 토글</span></button>
       <button id="btnPresentation" class="btn btn-ghost" title="발표 모드 (사이드바 숨김 & 확대)">🖥️ <span>발표 모드</span></button>
       <button id="btnStudentView" class="btn btn-ghost" title="학생 시각으로 화면 전환 (칠판 위로)">📽️ <span>학생 시점</span></button>
       <button id="btnRandom" class="btn btn-accent" title="무작위 발표자 뽑기">🎲 <span>랜덤 뽑기</span></button>
@@ -90,6 +92,7 @@
             <button id="btnApplyGrid" class="btn btn-primary btn-sm">격자 적용</button>
             <button id="btnShuffleSeats" class="btn btn-secondary btn-sm">🔀 랜덤 배치</button>
             <button id="btnSmartArrange" class="btn btn-secondary btn-sm">✨ 스마트 배치(성별)</button>
+            <button id="btnUndoSeating" class="btn btn-ghost btn-sm" title="배치 이전 상태로 되돌립니다.">↪ 되돌리기</button>
             <button id="btnClearSeats" class="btn btn-ghost btn-sm">자리 초기화</button>
           </div>
           <div class="seat-mode-controls">

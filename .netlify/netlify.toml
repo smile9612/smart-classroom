@@ -7,8 +7,10 @@ redirects = []
 [functions."*"]
 
 [build]
-publish = "G:\\Antigravity\\출결관리"
-publishOrigin = "default"
+publish = "G:\\Antigravity\\출결관리\\dist"
+publishOrigin = "ui"
+commandOrigin = "ui"
+command = "npm run build"
 
 [build.environment]
 

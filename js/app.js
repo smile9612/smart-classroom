@@ -65,6 +65,7 @@ let appState = {
     morningNotifyTime: "08:40",
     autoTransitionMode: "guide" // "guide" 또는 "auto"
   },
+  counselingRecords: [],   // 상담일지 기록 목록
   holidays: [],            // { date: "YYYY-MM-DD", label: "이유" }
   theme: 'dark'            // 테마 ('dark' 또는 'light')
 };
@@ -198,6 +199,7 @@ function activateTab(tabName) {
   if (tabName === 'attendance') renderAttendance();
   if (tabName === 'behavior') renderBehaviorTable();
   if (tabName === 'stats') renderStats();
+  if (tabName === 'counseling' && typeof renderCounselingList === 'function') renderCounselingList();
 }
 
 /** 발표 모드 토글 */
@@ -397,6 +399,7 @@ function initApp() {
     saveState();
     activateTab('seating');
     renderStudentSidebar();
+    if (typeof updateCounselingFilters === 'function') updateCounselingFilters();
   });
 
   // 학급 추가 버튼

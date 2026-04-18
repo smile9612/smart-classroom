@@ -19,7 +19,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/style.css">
+  <!-- PDF 생성을 위한 라이브러리 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
 
@@ -27,7 +29,7 @@
   <header class="app-header">
     <div class="header-left">
       <span class="app-icon">🏫</span>
-      <h1 class="app-title">스마트 교실 관리 <small style="font-size: 0.65rem; color: var(--text-muted); font-weight: 400; vertical-align: bottom;">v1.6.0 (Auto-deploy)</small></h1>
+      <h1 class="app-title">스마트 교실 관리 <small style="font-size: 0.65rem; color: var(--text-muted); font-weight: 400; vertical-align: bottom;">v1.7.0 (Auto-deploy)</small></h1>
     </div>
     <div class="header-center">
       <!-- 학급 선택 드롭다운 -->
@@ -55,6 +57,7 @@
     <button class="tab-btn active" data-tab="seating">📐 자리 배치</button>
     <button class="tab-btn" data-tab="attendance">📋 출결 관리</button>
     <button class="tab-btn" data-tab="behavior">📝 행동 기록</button>
+    <button class="tab-btn" data-tab="counseling">📋 상담일지</button>
     <button class="tab-btn" data-tab="timetable">📅 주간 시간표</button>
     <button class="tab-btn" data-tab="stats">📊 통계 &amp; 내보내기</button>
   </nav>
@@ -198,7 +201,43 @@
       </div>
     </section>
 
-    <!-- ── [탭4] 주간 시간표 & 시수 관리 ── -->
+    <!-- ── [탭4] 상담일지 ── -->
+    <section id="tab-counseling" class="tab-section">
+      <div class="section-card">
+        <div class="card-header">
+          <h2 class="card-title">🗒️ 학생 상담일지 관리</h2>
+          <div class="header-actions">
+            <button class="btn btn-primary" id="btnNewCounseling">➕ 새 상담일지</button>
+          </div>
+        </div>
+        
+        <!-- 상담일지 목록 필터 -->
+        <div class="filter-bar" style="margin-bottom: 20px;">
+          <div class="filter-group">
+            <label>기간:</label>
+            <select id="counselingPeriodFilter" class="form-select" style="width:150px;">
+              <option value="all">전체 기록</option>
+              <option value="week">이번 주</option>
+              <option value="month">이번 달</option>
+              <option value="term">이번 학기</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>학생:</label>
+            <select id="counselingStudentFilter" class="form-select dropdown-class" style="width:150px;">
+              <option value="all">전체 학생</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="counselingList" class="counseling-list">
+          <!-- 상담일지 목록이 여기에 렌더링됨 -->
+          <div class="empty-state">기록된 상담일지가 없습니다.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── [탭5] 주간 시간표 & 시수 관리 ── -->
     <section id="tab-timetable" class="tab-section">
       <div class="timetable-layout">
         <div class="timetable-header">
@@ -234,11 +273,11 @@
             <div class="config-row" style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--border-light);">
               <label>아침 알림:</label>
               <div style="display:flex; align-items:center; gap:10px;">
+                <input type="time" id="morningNotifyTime" class="form-input" style="width:160px;" value="08:40" />
                 <label class="toggle-label">
                   <input type="checkbox" id="morningNotifyEnabled" checked />
                   <span>사용</span>
                 </label>
-                <input type="time" id="morningNotifyTime" class="form-input" style="width:160px;" value="08:40" />
               </div>
             </div>
             <div class="config-row">
@@ -313,7 +352,7 @@
       </div>
     </section>
 
-    <!-- ── [탭5] 통계 & 내보내기 ── -->
+    <!-- ── [탭6] 통계 & 내보내기 ── -->
     <section id="tab-stats" class="tab-section">
       <div class="stats-layout">
         <h2>📊 통계 대시보드</h2>
@@ -551,6 +590,79 @@
     </div>
   </div>
 
+  <!-- 상담일지 작성/수정 모달 -->
+  <div id="counselingModal" class="modal hidden">
+    <div class="modal-content" style="max-width: 800px;">
+      <div class="modal-header">
+        <h2 id="counselingModalTitle">상담일지 작성</h2>
+        <button class="modal-close" id="btnCloseCounseling">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="counseling-form-grid">
+          <div class="form-group">
+            <label>학생 선택:</label>
+            <select id="inputCounselingStudent" class="form-select" style="width: 100%;"></select>
+          </div>
+          <div class="form-group">
+            <label>상담 일시:</label>
+            <input type="datetime-local" id="inputCounselingDate" class="form-input" style="width: 100%;">
+          </div>
+          <div class="form-group" style="grid-column: span 2;">
+            <label>상담 장소:</label>
+            <input type="text" id="inputCounselingPlace" class="form-input" style="width: 100%;" placeholder="예: 교실, 상담실">
+          </div>
+          
+          <div class="form-group" style="grid-column: span 2;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <label style="margin-bottom:0;">행동 기록 가져오기 (기간 선택):</label>
+              <select id="autoFetchPeriod" class="form-select" style="width:120px; font-size:0.8rem;">
+                <option value="week">최근 1주</option>
+                <option value="month">최근 1달</option>
+                <option value="term">이번 학기</option>
+              </select>
+            </div>
+            <div id="behaviorChecklist" class="behavior-checklist">
+              <div class="empty-state" style="padding:10px; font-size:0.8rem;">학생을 선택하면 해당 기간의 행동 기록이 나타납니다.</div>
+            </div>
+          </div>
+
+          <div class="form-group" style="grid-column: span 2;">
+            <label>상담 내용:</label>
+            <textarea id="inputCounselingContent" class="form-input" style="width: 100%; height: 100px;" placeholder="상담한 주요 내용을 입력하세요."></textarea>
+          </div>
+
+          <div class="form-group" style="grid-column: span 2;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <label style="margin-bottom:0;">지도 방법 및 결과:</label>
+              <button class="btn btn-secondary btn-sm" id="btnSuggestGuidance">자동 추천</button>
+            </div>
+            <textarea id="inputCounselingGuidance" class="form-input" style="width: 100%; height: 120px;" placeholder="지행한 지도 방법 및 결과를 입력하세요."></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btnCancelCounseling">취소</button>
+        <button class="btn btn-accent" id="btnSaveCounseling">저장하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PDF 미리보기 모달 (필요시) -->
+  <div id="pdfPreviewModal" class="modal hidden">
+    <div class="modal-content" style="max-width: 900px; height: 90vh;">
+      <div class="modal-header">
+        <h2>상담일지 미리보기</h2>
+        <button class="modal-close" id="btnClosePdfPreview">&times;</button>
+      </div>
+      <div class="modal-body" id="pdfPreviewContainer" style="overflow-y: auto; background: white; padding: 40px;">
+        <!-- PDF 양식이 여기에 렌더링됨 -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btnPrintLog">인쇄/저장 (PDF)</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== JS 로드 ===== -->
   <script src="js/phrases.js"></script>
   <script src="js/app.js"></script>
@@ -560,6 +672,7 @@
   <script src="js/behavior.js"></script>
   <script src="js/timetable.js"></script>
   <script src="js/export.js"></script>
+  <script src="js/counseling.js"></script>
   
   <!-- 서비스 워커 등록 -->
   <script>

@@ -41,6 +41,10 @@ function initTimetableTab() {
   // 주기적으로 현재 수업 감지 (1분마다)
   setInterval(checkCurrentLesson, 60000);
   checkCurrentLesson();
+
+  // 아침 팔업: 오늘의 시간표 안내
+  checkMorningSchedulePopup();
+  setInterval(checkMorningSchedulePopup, 60000); // 1분마다 체크
 }
 
 function loadTimetableUI() {
@@ -543,4 +547,95 @@ function calculateActualHours(classId) {
     current.setDate(current.getDate() + 1);
   }
   return count;
+}
+
+/** 아침 팔업: 오늘의 수업 시간표 안내 */
+let _morningPopupShownToday = '';
+
+function checkMorningSchedulePopup() {
+  const now = new Date();
+  const day = now.getDay();
+  // 주말이면 무시
+  if (day === 0 || day === 6) return;
+  
+  const todayKey = todayStr();
+  // 오늘 이미 표시했으면 무시
+  if (_morningPopupShownToday === todayKey) return;
+  
+  // 사용자가 설정한 시간 확인
+  const notifyTimeEl = document.getElementById('morningNotifyTime');
+  const notifyEnabledEl = document.getElementById('morningNotifyEnabled');
+  if (!notifyEnabledEl || !notifyEnabledEl.checked) return;
+  
+  const notifyTime = notifyTimeEl ? notifyTimeEl.value : '08:30';
+  const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+  
+  // 설정 시간이 지났고, 아직 15분 이내인 경우만 표시 (너무 늦게 열면 안 뜨게)
+  if (currentTime < notifyTime) return;
+  
+  // 설정 시간으로부터 30분 이내여야 표시
+  const [nh, nm] = notifyTime.split(':').map(Number);
+  const notifyMinutes = nh * 60 + nm;
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  if (currentMinutes - notifyMinutes > 30) return;
+  
+  // 오늘 수업 목록 수집
+  const dayIdx = day - 1; // 0(월)~4(금)
+  const weekKey = getWeekKey(now);
+  const count = appState.termSettings.schoolType === 'elementary' ? 6 : 8;
+  
+  let scheduleItems = [];
+  for (let p = 0; p < count; p++) {
+    const tKey = `${dayIdx}-${p}`;
+    let classId = appState.timetable[tKey] || '';
+    
+    // 주간 시간표 반영
+    if (appState.weeklyTimetable && appState.weeklyTimetable[weekKey] && appState.weeklyTimetable[weekKey][tKey] !== undefined) {
+      classId = appState.weeklyTimetable[weekKey][tKey];
+    }
+    
+    if (classId) {
+      const cls = appState.classes.find(c => c.id === classId);
+      const timeConf = appState.timeConfig[p];
+      const timeLabel = timeConf ? `${timeConf.start}~${timeConf.end}` : '';
+      scheduleItems.push({
+        period: p + 1,
+        className: cls ? cls.name : '(알 수 없는 학급)',
+        time: timeLabel
+      });
+    }
+  }
+  
+  if (scheduleItems.length === 0) return; // 오늘 수업 없음
+  
+  _morningPopupShownToday = todayKey;
+  
+  // 팔업 내용 생성
+  const days = ['월', '화', '수', '목', '금'];
+  const scheduleHtml = scheduleItems.map(it => 
+    `<tr><td style="padding:4px 10px; font-weight:600;">${it.period}교시</td><td style="padding:4px 10px; color:var(--accent); font-weight:700;">${it.className}</td><td style="padding:4px 10px; font-size:0.85rem; color:var(--text-muted);">${it.time}</td></tr>`
+  ).join('');
+  
+  const popupOverlay = document.createElement('div');
+  popupOverlay.className = 'modal-overlay';
+  popupOverlay.id = 'morningSchedulePopup';
+  popupOverlay.style.cssText = 'z-index:9999;';
+  popupOverlay.innerHTML = `
+    <div class="modal-box" style="max-width:420px; text-align:center;">
+      <h2 style="margin-bottom:10px;">🌅 오늘의 수업 안내</h2>
+      <p style="font-size:1.1rem; margin-bottom:15px; font-weight:600; color:var(--accent);">
+        ${now.getMonth()+1}월 ${now.getDate()}일 (${days[dayIdx]})요일
+      </p>
+      <table style="width:100%; border-collapse:collapse; margin:0 auto 15px;">
+        <thead><tr style="border-bottom:2px solid var(--border);"><th style="padding:5px;">교시</th><th style="padding:5px;">학급</th><th style="padding:5px;">시간</th></tr></thead>
+        <tbody>${scheduleHtml}</tbody>
+      </table>
+      <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:12px;">(시간표 탭 → 기초 시간표 → 아침 수업 안내 알림에서 시간/사용 여부 변경 가능)</p>
+      <button class="btn btn-primary btn-lg" style="width:100%;" onclick="document.getElementById('morningSchedulePopup').remove()">확인했습니다 👍</button>
+    </div>
+  `;
+  popupOverlay.addEventListener('click', (e) => {
+    if (e.target === popupOverlay) popupOverlay.remove();
+  });
+  document.body.appendChild(popupOverlay);
 }

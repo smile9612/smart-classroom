@@ -322,6 +322,12 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnCloseBulkBar').addEventListener('click', toggleBulkMode);
   document.getElementById('btnSelectAll').addEventListener('click', bulkSelectAll);
   document.getElementById('btnClearSelection').addEventListener('click', bulkClearSelection);
+  
+  // 일괄 메모 저장 버튼
+  const btnBulkMemo = document.getElementById('btnBulkSaveMemo');
+  if (btnBulkMemo) {
+    btnBulkMemo.addEventListener('click', saveBulkMemo);
+  }
 });
 
 /** 일괄 기록 모드 토글 */
@@ -330,15 +336,18 @@ function toggleBulkMode() {
   document.body.classList.toggle('bulk-mode-active', appState.isBulkMode);
   
   const bar = document.getElementById('bulkActionBar');
+  const bar2 = document.getElementById('bulkActionBar2');
   const btn = document.getElementById('btnBulkMode');
   
   if (appState.isBulkMode) {
     bar.classList.remove('hidden');
+    if (bar2) bar2.classList.remove('hidden');
     btn.classList.add('mode-btn-active');
     renderBulkActionButtons();
     showToast('✅ 일괄 기록 모드: 학생들을 클릭하여 선택한 후 하단 버튼을 누르세요.', 'info');
   } else {
     bar.classList.add('hidden');
+    if (bar2) bar2.classList.add('hidden');
     btn.classList.remove('mode-btn-active');
     bulkClearSelection();
     showToast('일괄 기록 모드가 종료되었습니다.');
@@ -361,6 +370,8 @@ function handleBulkClick(studentId) {
 /** 선택 인원 표시 업데이트 */
 function updateBulkCount() {
   document.getElementById('selectedCount').textContent = appState.selectedStudentIds.length;
+  const cnt2 = document.getElementById('selectedCount2');
+  if (cnt2) cnt2.textContent = appState.selectedStudentIds.length;
 }
 
 /** 전체 선택 */
@@ -418,6 +429,46 @@ function saveBulkBehavior(type, label, emoji) {
   });
 
   showToast(`✅ ${appState.selectedStudentIds.length}명에게 일괄 기록 완료!`, 'success');
+  bulkClearSelection();
+}
+
+/** 일괄 메모 저장 */
+function saveBulkMemo() {
+  if (appState.selectedStudentIds.length === 0) {
+    showToast('선택된 학생이 없습니다.', 'error');
+    return;
+  }
+  const memoInput = document.getElementById('bulkMemoInput');
+  const memo = memoInput ? memoInput.value.trim() : '';
+  if (!memo) {
+    showToast('메모 내용을 입력하세요.', 'error');
+    return;
+  }
+  
+  if (!confirm(`${appState.selectedStudentIds.length}명에게 메모를 일괄 저장하시겠습니까?\n"📝 ${memo}"`)) return;
+  
+  const cls = getCurrentClass();
+  if (!cls) return;
+  
+  appState.selectedStudentIds.forEach(sid => {
+    const record = {
+      id: generateId(),
+      studentId: sid,
+      classId: cls.id,
+      date: todayStr(),
+      time: new Date().toTimeString().slice(0, 5),
+      type: 'note',
+      label: '메모',
+      emoji: '📝',
+      note: memo,
+    };
+    appState.behaviors.push(record);
+    updateBehaviorDots(sid);
+  });
+  
+  saveState();
+  memoInput.value = '';
+  showToast(`📝 ${appState.selectedStudentIds.length}명에게 메모 일괄 저장 완료!`, 'success');
   bulkClearSelection();
 }
 

@@ -10,6 +10,7 @@
 let genderModeActive = false;   // 성별 자리 설정 모드
 let swapModeActive = false;     // 교체 모드
 let swapFirstKey = null;        // 교체 모드: 첫 번째 선택된 자리 key
+let seatsHistory = [];           // 자리 배치 되돌리기 이력
 
 // ── 유틸 ──
 function shuffleArray(arr) {
@@ -314,74 +315,110 @@ function handleDrop(e, targetKey) {
   renderSeating();
 }
 
-/** ★ 스마트 자동 배치 (성별 제한 우선 + 나머지 교차 배치) */
+/** 자리 배치 이력 백업 (되돌리기용) */
+function backupSeats() {
+  const cls = getCurrentClass();
+  if (!cls) return;
+  seatsHistory.push(JSON.parse(JSON.stringify(cls.seats)));
+  // 이력은 최대 10개만 보관
+  if (seatsHistory.length > 10) seatsHistory.shift();
+}
+
+/** 자리 배치 되돌리기 */
+function undoSeats() {
+  const cls = getCurrentClass();
+  if (!cls) return;
+  if (seatsHistory.length === 0) {
+    showToast('되돌릴 배치 이력이 없습니다.', 'warning');
+    return;
+  }
+  cls.seats = seatsHistory.pop();
+  saveState();
+  renderSeating();
+  showToast('↩ 이전 자리 배치로 되돌렸습니다!', 'success');
+}
+
+/** ★ 스마트 자동 배치 (행별 남여/여남 교차 패턴) */
 function smartAutoArrange() {
   const cls = getCurrentClass();
   if (!cls) return;
   if (cls.students.length === 0) { showToast('학생을 먼저 추가하세요.', 'error'); return; }
 
-  if (!confirm(`${cls.students.length}명을 성별에 맞게 자동 배치하시겠습니까?\n(지정된 성별 자리가 있다면 우선 배치됩니다.)`)) return;
+  if (!confirm(`${cls.students.length}명을 성별에 맞게 자동 배치하시겠습니까?\n(1행: 남여남여, 2행: 여남여남, 3행: 남여남여... 패턴)`)) return;
+
+  // 배치 전 현재 상태 백업 (되돌리기용)
+  backupSeats();
 
   // 1. 준비: 성별별 학생 풀 (랜덤화)
   let males = shuffleArray(cls.students.filter(s => s.gender === 'male').map(s => s.id));
   let females = shuffleArray(cls.students.filter(s => s.gender === 'female').map(s => s.id));
   let neutral = shuffleArray(cls.students.filter(s => !s.gender || (s.gender !== 'male' && s.gender !== 'female')).map(s => s.id));
 
-  // 2. 자리 분류
-  const maleSeats = [], femaleSeats = [], anySeats = [];
+  // 2. 자리 분류 (성별 지정석)
+  const maleSeats = [], femaleSeats = [];
   for (let r = 0; r < cls.gridRows; r++) {
     for (let c = 0; c < cls.gridCols; c++) {
       const key = `${r}-${c}`;
       const g = (cls.seatGenders || {})[key] || 'any';
       if (g === 'male') maleSeats.push(key);
       else if (g === 'female') femaleSeats.push(key);
-      else anySeats.push(key);
     }
   }
 
   const newSeats = {};
-  const assignedIds = new Set();
 
   function assign(key, pool) {
     if (pool.length > 0) {
       const id = pool.shift();
       newSeats[key] = id;
-      assignedIds.add(id);
       return true;
     }
     return false;
   }
 
-  // 3. 지정석 배치 (남학생/여학생 전용석)
+  // 3. 지정석 먼저 배치
   maleSeats.forEach(key => assign(key, males));
   femaleSeats.forEach(key => assign(key, females));
 
-  // 4. 나머지 학생들을 하나의 거대한 '남은 풀'로 합치지 않고, 
-  //    anySeats에 대해서 '남여남여' 지그재그 배치를 시도
-  let toggle = true; // 남-여 교체용 토글
-  anySeats.forEach(key => {
-    let success = false;
-    if (toggle) {
-      success = assign(key, males) || assign(key, females) || assign(key, neutral);
-    } else {
-      success = assign(key, females) || assign(key, males) || assign(key, neutral);
-    }
-    if (success) toggle = !toggle;
-  });
+  // 4. 칠판쪽(큰 행 번호)부터, 행별 남여/여남 교차 패턴
+  //    교사 시점 기준 칠판이 아래(큰 row)이므로 역순으로 진행
+  for (let r = cls.gridRows - 1; r >= 0; r--) {
+    // 짝수 행(칠판에서 1번째, 3번째...)은 남→여, 홀수 행은 여→남
+    const rowIndex = cls.gridRows - 1 - r; // 칠판에서 몇 번째 행인지
+    const startMale = (rowIndex % 2 === 0); // 0번째(칠판 바로 앞)는 남→여
+    
+    for (let c = 0; c < cls.gridCols; c++) {
+      const key = `${r}-${c}`;
+      if (newSeats[key]) continue; // 이미 지정석으로 배치된 자리
+      const sg = (cls.seatGenders || {})[key] || 'any';
+      if (sg !== 'any') continue; // 성별 제한 자리는 위에서 처리 완료
 
-  // 5. 만약 남은 자리가 있고 배치 안 된 학생이 있다면 (드문 경우) 순차 배치
-  const allRemaining = [...males, ...females, ...neutral]; 
-  anySeats.forEach(key => {
-    if (!newSeats[key] && allRemaining.length > 0) {
-      const id = allRemaining.shift();
-      newSeats[key] = id;
+      const colToggle = (c % 2 === 0); // 열 내 교차
+      const wantMale = startMale ? colToggle : !colToggle;
+
+      if (wantMale) {
+        assign(key, males) || assign(key, females) || assign(key, neutral);
+      } else {
+        assign(key, females) || assign(key, males) || assign(key, neutral);
+      }
     }
-  });
+  }
+
+  // 5. 혹시 남은 학생이 있으면 빈자리에 순차 배치
+  const allRemaining = [...males, ...females, ...neutral];
+  for (let r = cls.gridRows - 1; r >= 0; r--) {
+    for (let c = 0; c < cls.gridCols; c++) {
+      const key = `${r}-${c}`;
+      if (!newSeats[key] && allRemaining.length > 0) {
+        newSeats[key] = allRemaining.shift();
+      }
+    }
+  }
 
   cls.seats = newSeats;
   saveState();
   renderSeating();
-  showToast('✨ 성별을 고려한 스마트 배치가 완료되었습니다!', 'success');
+  showToast('✨ 성별 교차 배치가 완료되었습니다! (1행:남여, 2행:여남...)', 'success');
 }
 
 // ── 랜덤 뽑기 ──
@@ -496,19 +533,24 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnShuffleSeats').addEventListener('click', () => {
     const cls = getCurrentClass();
     if (!cls) return;
+    if (cls.students.length === 0) { showToast('학생을 먼저 추가하세요.', 'error'); return; }
     if (!confirm('학생들의 자리를 무작위로 배치하시겠습니까?')) return;
+    
+    // 배치 전 현재 상태 백업 (되돌리기용)
+    backupSeats();
+    
     const students = shuffleArray([...cls.students]);
     cls.seats = {};
     
-    // 앞쪽부터 채우기 위해 가능한 모든 자리 키를 앞자리부터 수집
+    // 칠판쪽(큰 행 번호)부터 채우기 위해 역순으로 키 수집
     let availableKeys = [];
-    for (let r = 0; r < cls.gridRows; r++) {
+    for (let r = cls.gridRows - 1; r >= 0; r--) {
       for (let c = 0; c < cls.gridCols; c++) {
         availableKeys.push(`${r}-${c}`);
       }
     }
     
-    // 학생 수만큼만 앞에서부터 잘라냄 (여기에 무작위로 섞인 학생이 차례로 들어감 -> 앞자리부터 무작위 배치 완성)
+    // 학생 수만큼만 잘라냄
     availableKeys = availableKeys.slice(0, students.length);
     
     students.forEach((s, i) => {
@@ -519,8 +561,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     saveState();
     renderSeating();
-    showToast('자리가 무작위로 배치되었습니다! 🎲', 'success');
+    showToast('자리가 칠판쪽부터 무작위로 배치되었습니다! 🎲', 'success');
   });
+
+  // 되돌리기 버튼
+  document.getElementById('btnUndoSeating').addEventListener('click', undoSeats);
 
   // 랜덤 뽑기 버튼
   document.getElementById('btnRandom').addEventListener('click', openRandomModal);

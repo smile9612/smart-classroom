@@ -60,7 +60,10 @@ let appState = {
     startDate: "", 
     endDate: "",
     schoolType: "secondary",
-    targetHours: {}       // { classId: hours }
+    targetHours: {},       // { classId: hours }
+    morningNotifyEnabled: true,
+    morningNotifyTime: "08:40",
+    autoTransitionMode: "guide" // "guide" 또는 "auto"
   },
   holidays: [],            // { date: "YYYY-MM-DD", label: "이유" }
   theme: 'dark'            // 테마 ('dark' 또는 'light')

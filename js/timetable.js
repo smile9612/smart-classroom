@@ -52,6 +52,15 @@ function loadTimetableUI() {
   document.getElementById('termStartDate').value = ts.startDate || "";
   document.getElementById('termEndDate').value = ts.endDate || "";
   document.getElementById('schoolType').value = ts.schoolType || "secondary";
+  
+  // 아침 알림 및 자동 이동 설정 로드
+  const morningEnabledEl = document.getElementById('morningNotifyEnabled');
+  const morningTimeEl = document.getElementById('morningNotifyTime');
+  const autoModeEl = document.getElementById('autoTransitionMode');
+  
+  if (morningEnabledEl) morningEnabledEl.checked = ts.morningNotifyEnabled !== false; // 기본값 true
+  if (morningTimeEl) morningTimeEl.value = ts.morningNotifyTime || "08:40";
+  if (autoModeEl) autoModeEl.value = ts.autoTransitionMode || "guide";
 
   renderTimeSettings();
   renderWeeklyTimetable();
@@ -187,23 +196,24 @@ function renderTargetHoursSettings() {
     bulkDiv.style.cssText = 'margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid var(--border);';
     
     let html = `<strong style="display:block; margin-bottom:8px; font-size:0.9rem;">학년별 일괄 시수 기입</strong>
-                <div style="display:flex; flex-wrap:wrap; gap:10px;">`;
+                <div style="display:flex; align-items:center; gap:10px; background:var(--bg-lighter); padding:8px 12px; border-radius:8px; border:1px solid var(--border);">
+                  <select id="bulkGradeSelect" class="form-select" style="width:120px;">`;
     gradeKeys.forEach(g => {
-      html += `<div style="display:flex; align-items:center; gap:5px; background:var(--bg-lighter); padding:5px 8px; border-radius:6px;">
-        <span style="font-size:0.85rem">${g}:</span>
-        <input type="number" class="form-input bulk-grade-input" data-grade="${g}" style="width:60px;" placeholder="시수" min="0">
-        <button class="btn btn-secondary btn-sm" onclick="applyBulkHours('${g}')">적용</button>
-      </div>`;
+      html += `<option value="${g}">${g}</option>`;
     });
-    html += `</div>`;
+    html += `   </select>
+                  <input type="number" id="bulkHourInput" class="form-input" style="width:70px;" placeholder="시수" min="0">
+                  <button class="btn btn-secondary btn-sm" onclick="applyBulkHours()">적용</button>
+                </div>`;
     bulkDiv.innerHTML = html;
     container.appendChild(bulkDiv);
   }
 
   // 글로벌 일괄 적용 함수
-  window.applyBulkHours = function(grade) {
-    const input = document.querySelector(`.bulk-grade-input[data-grade="${grade}"]`);
-    if(!input || !input.value) return;
+  window.applyBulkHours = function() {
+    const grade = document.getElementById('bulkGradeSelect').value;
+    const input = document.getElementById('bulkHourInput');
+    if(!input || !input.value) { showToast('시수를 입력해주세요.', 'error'); return; }
     const val = parseInt(input.value);
     
     appState.classes.forEach(c => {
@@ -437,6 +447,11 @@ function saveAllTimetableConfig() {
     appState.termSettings.targetHours[input.dataset.id] = parseInt(input.value) || 0;
   });
 
+  // 4. 아침 알림 및 자동 이동 설정
+  appState.termSettings.morningNotifyEnabled = document.getElementById('morningNotifyEnabled').checked;
+  appState.termSettings.morningNotifyTime = document.getElementById('morningNotifyTime').value;
+  appState.termSettings.autoTransitionMode = document.getElementById('autoTransitionMode').value;
+
   saveState();
   renderTargetHoursSettings(); // 저장 시 시수 UI 재계산
   showToast('시간표 및 설정이 저장되었습니다.', 'success');
@@ -474,7 +489,17 @@ function checkCurrentLesson() {
         hideSmartNotice();
         return;
       }
-      showSmartNotice(currentPeriodIdx + 1, cls);
+      
+      // 자동 이동 방식에 따른 처리
+      if (appState.termSettings.autoTransitionMode === 'auto') {
+        // 완전 자동: 안내 없이 즉시 이동
+        window._currentDetectedClassId = cls.id;
+        goToCurrentClass();
+        showToast(`수업 시간이 되어 ${cls.name} 화면으로 자동 전환되었습니다.`, 'info');
+      } else {
+        // 팝업 안내: 사용자의 이동 버튼 클릭 대기
+        showSmartNotice(currentPeriodIdx + 1, cls);
+      }
       return;
     }
   }
@@ -563,17 +588,15 @@ function checkMorningSchedulePopup() {
   if (_morningPopupShownToday === todayKey) return;
   
   // 사용자가 설정한 시간 확인
-  const notifyTimeEl = document.getElementById('morningNotifyTime');
-  const notifyEnabledEl = document.getElementById('morningNotifyEnabled');
-  if (!notifyEnabledEl || !notifyEnabledEl.checked) return;
+  const ts = appState.termSettings;
+  if (!ts.morningNotifyEnabled) return;
   
-  const notifyTime = notifyTimeEl ? notifyTimeEl.value : '08:30';
+  const notifyTime = ts.morningNotifyTime || '08:40';
   const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
   
-  // 설정 시간이 지났고, 아직 15분 이내인 경우만 표시 (너무 늦게 열면 안 뜨게)
+  // 설정 시간이 지났고, 아직 30분 이내인 경우만 표시
   if (currentTime < notifyTime) return;
   
-  // 설정 시간으로부터 30분 이내여야 표시
   const [nh, nm] = notifyTime.split(':').map(Number);
   const notifyMinutes = nh * 60 + nm;
   const currentMinutes = now.getHours() * 60 + now.getMinutes();

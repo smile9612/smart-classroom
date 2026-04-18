@@ -27,7 +27,7 @@
   <header class="app-header">
     <div class="header-left">
       <span class="app-icon">🏫</span>
-      <h1 class="app-title">스마트 교실 관리 <small style="font-size: 0.65rem; color: var(--text-muted); font-weight: 400; vertical-align: bottom;">v1.5.1 (Auto-deploy)</small></h1>
+      <h1 class="app-title">스마트 교실 관리 <small style="font-size: 0.65rem; color: var(--text-muted); font-weight: 400; vertical-align: bottom;">v1.6.0 (Auto-deploy)</small></h1>
     </div>
     <div class="header-center">
       <!-- 학급 선택 드롭다운 -->
@@ -229,6 +229,23 @@
               <select id="schoolType" class="form-select">
                 <option value="elementary">초등학교 (6교시)</option>
                 <option value="secondary" selected>중·고등학교 (8교시)</option>
+              </select>
+            </div>
+            <div class="config-row" style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--border-light);">
+              <label>아침 알림:</label>
+              <div style="display:flex; align-items:center; gap:10px;">
+                <label class="toggle-label">
+                  <input type="checkbox" id="morningNotifyEnabled" checked />
+                  <span>사용</span>
+                </label>
+                <input type="time" id="morningNotifyTime" class="form-input" style="width:160px;" value="08:40" />
+              </div>
+            </div>
+            <div class="config-row">
+              <label>이동 안내:</label>
+              <select id="autoTransitionMode" class="form-select" style="width: 100%;">
+                <option value="guide">팝업 안내 (확인 후 이동)</option>
+                <option value="auto">완전 자동 (즉시 이동)</option>
               </select>
             </div>
           </div>

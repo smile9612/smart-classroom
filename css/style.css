@@ -1575,7 +1575,7 @@ body.presentation-mode .student-number {
   min-width: 60px;
 }
 .time-item input {
-  width: 130px;
+  width: 150px; /* 130px -> 150px 확장 */
   text-align: center;
   padding: 6px 8px;
 }

@@ -6,8 +6,8 @@
 // ── 상수 정의 ──
 const STORAGE_KEY = 'smartClassroom_v2';
 
-// 미리 정의된 행동 유형
-const BEHAVIOR_TYPES = {
+// 미리 정의된 행동 유형 (기본값)
+const DEFAULT_BEHAVIOR_TYPES = {
   positive: [
     { id: 'p1', label: '수업태도 우수', emoji: '⭐' },
     { id: 'p2', label: '적극적 발표', emoji: '🙋' },
@@ -25,6 +25,11 @@ const BEHAVIOR_TYPES = {
     { id: 'n4', label: '과제 미제출', emoji: '📋' },
     { id: 'n5', label: '친구와 다툼', emoji: '⚡' },
     { id: 'n6', label: '무단 이탈', emoji: '🚶' },
+    { id: 'n7', label: '수업 중 딴짓', emoji: '👀' },
+    { id: 'n8', label: '친구와 수다', emoji: '🗣️' },
+    { id: 'n9', label: '책에 낙서', emoji: '🖍️' },
+    { id: 'n10', label: '수업중 거울보기', emoji: '🪞' },
+    { id: 'n11', label: '노트 정리 안함', emoji: '📓' },
   ]
 };
 
@@ -48,6 +53,7 @@ let appState = {
   isStudentView: false,
   isBulkMode: false,
   selectedStudentIds: [],
+  behaviorTypes: null, // 동적으로 생성할 행동 항목
   // 시간표 및 시수 관련
   timetable: {},          // { "요일-교시": classId }
   timeConfig: [           // 교시별 시정표 (기본값)
@@ -197,7 +203,10 @@ function activateTab(tabName) {
   // 탭 전환 시 각 화면 갱신
   if (tabName === 'seating') renderSeating();
   if (tabName === 'attendance') renderAttendance();
-  if (tabName === 'behavior') renderBehaviorTable();
+  if (tabName === 'behavior') {
+    renderBehaviorTable();
+    if (typeof renderBehaviorSettings === 'function') renderBehaviorSettings();
+  }
   if (tabName === 'stats') renderStats();
   if (tabName === 'counseling' && typeof renderCounselingList === 'function') renderCounselingList();
 }
@@ -394,6 +403,27 @@ function initApp() {
   
   // 데이터 불러오기
   loadState();
+
+  // 행동 기록 설정 마이그레이션 및 초기화
+  if (!appState.behaviorTypes) {
+    appState.behaviorTypes = JSON.parse(JSON.stringify(DEFAULT_BEHAVIOR_TYPES));
+    saveState();
+  } else {
+    // 앱이 이전에 저장된 데이터와 병합할 수도 있지만, 우선 기본 항목으로 채우는 것 위주.
+    // 사용자가 삭제했던 것도 부활할까봐 추가 작업은 최소화하나, 
+    // 최소한의 요청 항목 추가 로직 (n7~n11) 누락 체크
+    const hasDistract = appState.behaviorTypes.negative.some(b => b.id === 'n7' || b.label === '수업 중 딴짓');
+    if (!hasDistract) {
+      appState.behaviorTypes.negative.push(
+        { id: 'n7', label: '수업 중 딴짓', emoji: '👀' },
+        { id: 'n8', label: '친구와 수다', emoji: '🗣️' },
+        { id: 'n9', label: '책에 낙서', emoji: '🖍️' },
+        { id: 'n10', label: '수업중 거울보기', emoji: '🪞' },
+        { id: 'n11', label: '노트 정리 안함', emoji: '📓' }
+      );
+      saveState();
+    }
+  }
 
   // 가나다라순으로 학급 정렬
   if (appState.classes && appState.classes.length > 0) {

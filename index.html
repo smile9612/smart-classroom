@@ -201,6 +201,35 @@
           </div>
         </div>
         <div id="behaviorTable" class="behavior-table-wrap"></div>
+        
+        <!-- 행동 항목 커스텀 관리 UI -->
+        <div id="behaviorSettingsContainer" class="behavior-settings" style="margin-top: 30px; border-top: 1px solid var(--border); padding-top: 20px;">
+          <h3 style="margin-bottom: 15px; font-size: 1.1rem; color: var(--text-primary);">⚙️ 행동 항목 설정</h3>
+          <div style="display: flex; gap: 30px; flex-wrap: wrap;">
+            
+            <div style="flex: 1; min-width: 280px; background: var(--bg-secondary); padding: 15px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+              <h4 style="margin-bottom: 12px; font-size: 0.95rem;">⭐ 긍정 행동</h4>
+              <div id="positiveSettingList" style="margin-bottom: 15px; display:flex; flex-direction:column; gap:8px;"></div>
+              <div style="display: flex; gap: 6px;">
+                <input type="text" id="newPositiveEmoji" class="form-input" style="width: 50px; text-align: center;" placeholder="⭐">
+                <input type="text" id="newPositiveLabel" class="form-input" style="flex:1;" placeholder="새 항목 이름...">
+                <button class="btn btn-primary btn-sm" onclick="addBehaviorType('positive')">추가</button>
+              </div>
+            </div>
+
+            <div style="flex: 1; min-width: 280px; background: var(--bg-secondary); padding: 15px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+              <h4 style="margin-bottom: 12px; font-size: 0.95rem;">⚠️ 개선 필요 (부정 행동)</h4>
+              <div id="negativeSettingList" style="margin-bottom: 15px; display:flex; flex-direction:column; gap:8px;"></div>
+              <div style="display: flex; gap: 6px;">
+                <input type="text" id="newNegativeEmoji" class="form-input" style="width: 50px; text-align: center;" placeholder="⚠️">
+                <input type="text" id="newNegativeLabel" class="form-input" style="flex:1;" placeholder="새 항목 이름...">
+                <button class="btn btn-primary btn-sm" onclick="addBehaviorType('negative')">추가</button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
       </div>
     </section>
 

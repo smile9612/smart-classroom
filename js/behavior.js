@@ -31,7 +31,7 @@ function openBehaviorModal(studentId) {
   // 긍정 행동 버튼 생성
   const posContainer = document.getElementById('positiveBtns');
   posContainer.innerHTML = '';
-  BEHAVIOR_TYPES.positive.forEach(bType => {
+  (appState.behaviorTypes?.positive || []).forEach(bType => {
     const btn = document.createElement('button');
     btn.className = 'beh-btn positive';
     btn.innerHTML = `${bType.emoji} ${bType.label}`;
@@ -50,7 +50,7 @@ function openBehaviorModal(studentId) {
   // 부정/개선 행동 버튼 생성
   const negContainer = document.getElementById('negativeBtns');
   negContainer.innerHTML = '';
-  BEHAVIOR_TYPES.negative.forEach(bType => {
+  (appState.behaviorTypes?.negative || []).forEach(bType => {
     const btn = document.createElement('button');
     btn.className = 'beh-btn negative';
     btn.innerHTML = `${bType.emoji} ${bType.label}`;
@@ -167,7 +167,7 @@ function renderBehaviorTable() {
   // 행동 유형 필터 갱신
   const currentBehFilter = filterBehavior.value;
   filterBehavior.innerHTML = '<option value="">전체 행동</option>';
-  const allTypes = [...BEHAVIOR_TYPES.positive, ...BEHAVIOR_TYPES.negative];
+  const allTypes = [...(appState.behaviorTypes?.positive || []), ...(appState.behaviorTypes?.negative || [])];
   allTypes.forEach(t => {
     const opt = document.createElement('option');
     opt.value = t.label;
@@ -392,7 +392,7 @@ function renderBulkActionButtons() {
   posCont.innerHTML = '';
   negCont.innerHTML = '';
 
-  BEHAVIOR_TYPES.positive.forEach(b => {
+  (appState.behaviorTypes?.positive || []).forEach(b => {
     const btn = document.createElement('button');
     btn.className = 'bulk-beh-btn';
     btn.textContent = `${b.emoji} ${b.label}`;
@@ -400,7 +400,7 @@ function renderBulkActionButtons() {
     posCont.appendChild(btn);
   });
 
-  BEHAVIOR_TYPES.negative.forEach(b => {
+  (appState.behaviorTypes?.negative || []).forEach(b => {
     const btn = document.createElement('button');
     btn.className = 'bulk-beh-btn';
     btn.textContent = `${b.emoji} ${b.label}`;
@@ -531,5 +531,86 @@ function exportBehaviorCsv(cls) {
     csv += `${r.date},${sNum},"${sName}","${type}","${r.label}","${r.note || ''}"\n`;
   });
   downloadCsv(csv, `행동기록_${cls.name}.csv`);
-  showToast('행동 기록 CSV가 다운로드되었습니다.', 'success');
 }
+
+// ── 행동 항목 커스텀 관리 ──
+function renderBehaviorSettings() {
+  const container = document.getElementById('behaviorSettingsContainer');
+  if (!container) return;
+  
+  if (!appState.behaviorTypes) return;
+
+  function renderList(type, containerId) {
+    const listEl = document.getElementById(containerId);
+    if (!listEl) return;
+    listEl.innerHTML = '';
+    
+    appState.behaviorTypes[type].forEach((b, idx) => {
+      const item = document.createElement('div');
+      item.className = 'behavior-setting-item';
+      item.innerHTML = `
+        <span class="beh-emoji">${b.emoji}</span>
+        <span class="beh-label">${b.label}</span>
+        <button class="btn-delete-beh" onclick="deleteBehaviorType('${type}', ${idx})" title="삭제">✕</button>
+      `;
+      listEl.appendChild(item);
+    });
+  }
+
+  renderList('positive', 'positiveSettingList');
+  renderList('negative', 'negativeSettingList');
+}
+
+function addBehaviorType(type) {
+  const labelInput = document.getElementById(`new${type === 'positive' ? 'Positive' : 'Negative'}Label`);
+  const emojiInput = document.getElementById(`new${type === 'positive' ? 'Positive' : 'Negative'}Emoji`);
+  
+  const label = labelInput.value.trim();
+  const emoji = emojiInput.value.trim() || (type === 'positive' ? '⭐' : '⚠️');
+  
+  if (!label) {
+    showToast('항목 이름을 입력해주세요.', 'error');
+    return;
+  }
+  
+  if (!appState.behaviorTypes) {
+    appState.behaviorTypes = { positive: [], negative: [] };
+  }
+  
+  appState.behaviorTypes[type].push({
+    id: `${type[0]}${Date.now()}`,
+    label,
+    emoji
+  });
+  
+  saveState();
+  labelInput.value = '';
+  emojiInput.value = '';
+  
+  renderBehaviorSettings();
+  renderBehaviorTable();
+  if (appState.isBulkMode) renderBulkActionButtons();
+  showToast('새 항목이 추가되었습니다.', 'success');
+}
+
+function deleteBehaviorType(type, index) {
+  if (!appState.behaviorTypes || !appState.behaviorTypes[type]) return;
+  
+  const item = appState.behaviorTypes[type][index];
+  if (!confirm(`'${item.label}' 항목을 삭제하시겠습니까?\n(기존에 이 항목으로 기록된 데이터는 그대로 유지됩니다.)`)) {
+    return;
+  }
+  
+  appState.behaviorTypes[type].splice(index, 1);
+  saveState();
+  
+  renderBehaviorSettings();
+  renderBehaviorTable();
+  if (appState.isBulkMode) renderBulkActionButtons();
+  showToast('항목이 삭제되었습니다.');
+}
+
+// behavior.js 실행 시 노출을 위해 전역 함수로 지정
+window.renderBehaviorSettings = renderBehaviorSettings;
+window.addBehaviorType = addBehaviorType;
+window.deleteBehaviorType = deleteBehaviorType;

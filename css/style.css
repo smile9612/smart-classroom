@@ -131,11 +131,18 @@ body {
   justify-content: center;
   flex: 1 1 auto;
   min-width: 0;
+  gap: 12px;
 }
 .class-selector-wrap {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 .class-select {
   background: var(--bg-card);
@@ -1648,8 +1655,8 @@ body.presentation-mode .student-number {
   font-weight: bold;
 }
 
-/* 태블릿 대응 (1100px 이하) */
-@media (max-width: 1100px) {
+/* 태블릿/아이패드 대응 (1280px 이하) - 헤더 메뉴 잘림 방지 */
+@media (max-width: 1280px) {
   .app-header { padding: 0 8px; gap: 4px; }
   .app-title { display: none; }
   .header-left { gap: 4px; }

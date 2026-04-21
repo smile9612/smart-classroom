@@ -288,6 +288,23 @@ function renderWeeklyTimetable() {
       const key = `${d}-${p}`;
       
       let classId = "";
+      let isHoliday = false;
+      let holidayLabel = "";
+
+      // 현재 셀의 날짜 계산 (주간 시간표 모드일 때)
+      let targetDateStr = "";
+      if (currentTimetableMode === 'weekly' && selectedWeekStart) {
+        const targetDate = new Date(selectedWeekStart);
+        targetDate.setDate(targetDate.getDate() + d);
+        targetDateStr = targetDate.toISOString().split('T')[0];
+        
+        const holiday = appState.holidays.find(h => h.date === targetDateStr);
+        if (holiday) {
+          isHoliday = true;
+          holidayLabel = holiday.label;
+        }
+      }
+
       if (currentTimetableMode === 'base') {
         classId = appState.timetable[key] || "";
       } else {
@@ -303,68 +320,73 @@ function renderWeeklyTimetable() {
       const td = document.createElement('td');
       td.dataset.key = key;
 
-      // 1. 드롭다운 선택박스 생성
-      const select = document.createElement('select');
-      select.className = 'timetable-select';
-      if (currentTimetableMode === 'weekly' && (!appState.weeklyTimetable[getWeekKey(selectedWeekStart)] || appState.weeklyTimetable[getWeekKey(selectedWeekStart)][key] === undefined)) {
-        // 기초 시간표를 그대로 상속받는 상태 표시
-        select.style.color = '#888'; 
-      }
-      
-      const defaultOpt = document.createElement('option');
-      defaultOpt.value = "";
-      defaultOpt.textContent = "-";
-      select.appendChild(defaultOpt);
-
-      appState.classes.forEach(cls => {
-        const opt = document.createElement('option');
-        opt.value = cls.id;
-        opt.textContent = cls.name;
-        if (cls.id === classId) opt.selected = true;
-        select.appendChild(opt);
-      });
-
-      select.onchange = (e) => {
-        if (currentTimetableMode === 'base') {
-          if (e.target.value) appState.timetable[key] = e.target.value;
-          else delete appState.timetable[key];
-        } else {
-          const weekKey = getWeekKey(selectedWeekStart);
-          if (!appState.weeklyTimetable[weekKey]) appState.weeklyTimetable[weekKey] = {};
-          appState.weeklyTimetable[weekKey][key] = e.target.value; // "" 일 수도 있음 (결강 처리)
-          select.style.color = 'inherit';
+      if (isHoliday) {
+        td.className = 'cell-holiday';
+        td.innerHTML = `<div class="holiday-notice">🚫 ${holidayLabel}</div>`;
+      } else {
+        // 1. 드롭다운 선택박스 생성
+        const select = document.createElement('select');
+        select.className = 'timetable-select';
+        if (currentTimetableMode === 'weekly' && (!appState.weeklyTimetable[getWeekKey(selectedWeekStart)] || appState.weeklyTimetable[getWeekKey(selectedWeekStart)][key] === undefined)) {
+          // 기초 시간표를 그대로 상속받는 상태 표시
+          select.style.color = '#888'; 
         }
-        saveState();
-        checkCurrentLesson();
-        renderTargetHoursSettings(); // 수정 시 시수 즉각 반영
-      };
+        
+        const defaultOpt = document.createElement('option');
+        defaultOpt.value = "";
+        defaultOpt.textContent = "-";
+        select.appendChild(defaultOpt);
 
-      // 2. 드래그 앤 드롭 이벤트 연결
-      td.ondragover = (e) => {
-        e.preventDefault();
-        td.classList.add('drag-over');
-      };
-      td.ondragleave = () => td.classList.remove('drag-over');
-      td.ondrop = (e) => {
-        e.preventDefault();
-        td.classList.remove('drag-over');
-        const droppedClassId = e.dataTransfer.getData('text/plain');
-        if (droppedClassId) {
+        appState.classes.forEach(cls => {
+          const opt = document.createElement('option');
+          opt.value = cls.id;
+          opt.textContent = cls.name;
+          if (cls.id === classId) opt.selected = true;
+          select.appendChild(opt);
+        });
+
+        select.onchange = (e) => {
           if (currentTimetableMode === 'base') {
-            appState.timetable[key] = droppedClassId;
+            if (e.target.value) appState.timetable[key] = e.target.value;
+            else delete appState.timetable[key];
           } else {
             const weekKey = getWeekKey(selectedWeekStart);
             if (!appState.weeklyTimetable[weekKey]) appState.weeklyTimetable[weekKey] = {};
-            appState.weeklyTimetable[weekKey][key] = droppedClassId;
+            appState.weeklyTimetable[weekKey][key] = e.target.value; // "" 일 수도 있음 (결강 처리)
+            select.style.color = 'inherit';
           }
-          renderWeeklyTimetable();
-          renderTargetHoursSettings();
           saveState();
           checkCurrentLesson();
-        }
-      };
+          renderTargetHoursSettings(); // 수정 시 시수 즉각 반영
+        };
 
-      td.appendChild(select);
+        // 2. 드래그 앤 드롭 이벤트 연결
+        td.ondragover = (e) => {
+          e.preventDefault();
+          td.classList.add('drag-over');
+        };
+        td.ondragleave = () => td.classList.remove('drag-over');
+        td.ondrop = (e) => {
+          e.preventDefault();
+          td.classList.remove('drag-over');
+          const droppedClassId = e.dataTransfer.getData('text/plain');
+          if (droppedClassId) {
+            if (currentTimetableMode === 'base') {
+              appState.timetable[key] = droppedClassId;
+            } else {
+              const weekKey = getWeekKey(selectedWeekStart);
+              if (!appState.weeklyTimetable[weekKey]) appState.weeklyTimetable[weekKey] = {};
+              appState.weeklyTimetable[weekKey][key] = droppedClassId;
+            }
+            renderWeeklyTimetable();
+            renderTargetHoursSettings();
+            saveState();
+            checkCurrentLesson();
+          }
+        };
+
+        td.appendChild(select);
+      }
       tr.appendChild(td);
     }
     tbody.appendChild(tr);
@@ -410,11 +432,28 @@ function addHoliday() {
   const date = document.getElementById('holidayDate').value;
   const label = document.getElementById('holidayLabel').value.trim();
   if (!date || !label) { showToast('날짜와 사유를 입력하세요.', 'error'); return; }
-  
+
   appState.holidays.push({ date, label });
+
+  // 공휴일 추가 시 해당 날짜의 주간 시간표 데이터 삭제
+  const targetDate = new Date(date);
+  const weekKey = getWeekKey(targetDate);
+  const dayIdx = (targetDate.getDay() || 7) - 1; // 0(월)~4(금)
+  
+  if (dayIdx >= 0 && dayIdx < 5) {
+    if (!appState.weeklyTimetable[weekKey]) appState.weeklyTimetable[weekKey] = {};
+    for (let p = 0; p < 8; p++) {
+      appState.weeklyTimetable[weekKey][`${dayIdx}-${p}`] = ""; // 빈 값으로 설정하여 결강 처리
+    }
+  }
+
   document.getElementById('holidayDate').value = '';
   document.getElementById('holidayLabel').value = '';
   renderHolidayList();
+  renderWeeklyTimetable();
+  renderTargetHoursSettings();
+  saveState();
+  showToast(`${date} (${label}) 수업 제외일로 설정되어 기존 시간표가 삭제되었습니다.`, 'warning');
 }
 
 function removeHoliday(idx) {

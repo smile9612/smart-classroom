@@ -56,6 +56,8 @@ let appState = {
   behaviorTypes: null, // 동적으로 생성할 행동 항목
   // 시간표 및 시수 관련
   timetable: {},          // { "요일-교시": classId }
+  weeklyTimetable: {},    // { weekKey: { "요일-교시": classId } }
+  holidays: [],           // [ { date, label } ]
   timeConfig: [           // 교시별 시정표 (기본값)
     { start: "09:00", end: "09:40" }, { start: "09:50", end: "10:30" },
     { start: "10:40", end: "11:20" }, { start: "11:30", end: "12:10" },

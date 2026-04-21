@@ -20,6 +20,7 @@ function initTimetableTab() {
 
   document.getElementById('btnSaveTimetable').addEventListener('click', saveAllTimetableConfig);
   document.getElementById('btnAddHoliday').addEventListener('click', addHoliday);
+  document.getElementById('btnLoadPublicHolidays').addEventListener('click', loadNationalHolidays);
   document.getElementById('btnGoToClass').addEventListener('click', goToCurrentClass);
   
   // 기초/주간 전환
@@ -409,6 +410,107 @@ function selectClassForTimetable(key, td) {
     delete appState.timetable[key];
   }
   renderWeeklyTimetable();
+}
+
+/** 국가 공휴일 불러오기 및 보정 */
+async function loadNationalHolidays() {
+  const currentYear = new Date().getFullYear();
+  const url = `https://date.nager.at/api/v3/PublicHolidays/${currentYear}/KR`;
+  
+  showToast(`${currentYear}년 국가 공휴일을 불러오는 중...`, 'info');
+  
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('API 호출 실패');
+    
+    const data = await response.json();
+    let holidays = data.map(h => ({ date: h.date, label: h.localName }));
+    
+    // 1. 근로자의 날 (5월 1일) 추가 - 학교 현장 필수
+    if (!holidays.some(h => h.date === `${currentYear}-05-01`)) {
+      holidays.push({ date: `${currentYear}-05-01`, label: '근로자의 날' });
+    }
+    
+    // 2. 대체 공휴일 자동 계산
+    const substitutions = calculateSubstitutionHolidays(holidays, currentYear);
+    holidays = [...holidays, ...substitutions];
+    
+    // 3. 중복 제거 및 사용자 입력 우선순위 반영 (사용자 요청: 공휴일이 먼저 적용되게)
+    const merged = [...appState.holidays];
+    holidays.forEach(nh => {
+      const idx = merged.findIndex(h => h.date === nh.date);
+      if (idx !== -1) {
+        merged[idx] = nh; // 기존 항목을 공휴일 명칭으로 업데이트
+      } else {
+        merged.push(nh);
+      }
+    });
+    
+    appState.holidays = merged.sort((a, b) => a.date.localeCompare(b.date));
+    
+    // 4. 삭제된 날짜에 대한 시간표 정리
+    holidays.forEach(nh => {
+      clearTimetableForDate(nh.date);
+    });
+
+    saveState();
+    renderHolidayList();
+    renderWeeklyTimetable();
+    renderTargetHoursSettings();
+    showToast(`${currentYear}년 공휴일 및 대체공휴일이 반영되었습니다.`, 'success');
+    
+  } catch (err) {
+    console.error(err);
+    showToast('공휴일 데이터를 가져오지 못했습니다. 네트워크를 확인해주세요.', 'error');
+  }
+}
+
+/** 대체 공휴일 계산 (대한민국 법령 기준 - 2026년 이후 확대 적용분 포함) */
+function calculateSubstitutionHolidays(baseHolidays, year) {
+  const subs = [];
+  // 대체공휴일 적용 대상: 설날/추석(3일), 어린이날, 3.1절, 광복절, 개천절, 한글날, 석가탄신일, 성탄절
+  const subTargets = ['설날', '추석', '어린이날', '3·1절', '광복절', '개천절', '한글날', '부처님 오신 날', '크리스마스'];
+  
+  baseHolidays.forEach(h => {
+    if (subTargets.some(target => h.label.includes(target))) {
+      const [y, m, d_val] = h.date.split('-').map(Number);
+      const d = new Date(y, m - 1, d_val);
+      const day = d.getDay(); // 0:일, 6:토
+      
+      // 어린이날 및 국경일 등은 토/일 모두 적용
+      // 설날/추석 등 연휴는 일요일 중복 시 적용
+      if (day === 0 || day === 6) {
+        let subDate = new Date(d);
+        while (true) {
+          subDate.setDate(subDate.getDate() + 1);
+          const subDateStr = `${subDate.getFullYear()}-${String(subDate.getMonth() + 1).padStart(2, '0')}-${String(subDate.getDate()).padStart(2, '0')}`;
+          const isWeekend = subDate.getDay() === 0 || subDate.getDay() === 6;
+          // 기존 공휴일(이미 계산된 대체공휴일 포함)과 겹치는지 체크
+          const isExistingHoliday = baseHolidays.some(bh => bh.date === subDateStr) || subs.some(s => s.date === subDateStr);
+          
+          if (!isWeekend && !isExistingHoliday) {
+            subs.push({ date: subDateStr, label: `대체공휴일(${h.label})` });
+            break;
+          }
+        }
+      }
+    }
+  });
+  return subs;
+}
+
+/** 특정 날짜의 시간표 데이터 삭제 유틸리티 */
+function clearTimetableForDate(dateStr) {
+  const [y, m, d_val] = dateStr.split('-').map(Number);
+  const targetDate = new Date(y, m - 1, d_val);
+  const weekKey = getWeekKey(targetDate);
+  const dayIdx = (targetDate.getDay() || 7) - 1;
+  if (dayIdx >= 0 && dayIdx < 5) {
+    if (!appState.weeklyTimetable[weekKey]) appState.weeklyTimetable[weekKey] = {};
+    for (let p = 0; p < 8; p++) {
+      appState.weeklyTimetable[weekKey][`${dayIdx}-${p}`] = "";
+    }
+  }
 }
 
 /** 공휴일 리스트 렌더링 */

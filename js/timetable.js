@@ -296,7 +296,7 @@ function renderWeeklyTimetable() {
       if (currentTimetableMode === 'weekly' && selectedWeekStart) {
         const targetDate = new Date(selectedWeekStart);
         targetDate.setDate(targetDate.getDate() + d);
-        targetDateStr = targetDate.toISOString().split('T')[0];
+        targetDateStr = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(targetDate.getDate()).padStart(2, '0')}`;
         
         const holiday = appState.holidays.find(h => h.date === targetDateStr);
         if (holiday) {
@@ -586,7 +586,7 @@ function calculateActualHours(classId) {
   while (current <= today) {
     const day = current.getDay();
     if (day !== 0 && day !== 6) { // 주말 제외
-      const dateStr = current.toISOString().split('T')[0];
+      const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
       const isHoliday = appState.holidays.some(h => h.date === dateStr);
       
       if (!isHoliday) {

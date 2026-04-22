@@ -344,6 +344,34 @@
   100% { transform: scale(1); }
 }
 
+/* 탭 바 내부 전용 스타일 */
+.tab-nav {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.save-indicator.tab-side {
+  margin-left: auto; /* 오른쪽 끝으로 밀기 */
+  margin-right: 15px;
+  font-weight: 600;
+  pointer-events: auto;
+  cursor: default;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.spin-icon {
+  display: inline-block;
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 /* ── 라이트 모드 대응 ── */
 .light-mode .login-screen {
   background: linear-gradient(135deg, #f0f2ff 0%, #e8e0ff 30%, #dbe8ff 60%, #f0f2ff 100%);

@@ -18,27 +18,31 @@ function updateSaveIndicator(status) {
   }
   if (!_saveIndicator) return;
 
+  const baseClass = 'save-indicator tab-side';
+  
   switch (status) {
     case 'saving':
-      _saveIndicator.textContent = '☁️ 저장 중...';
-      _saveIndicator.className = 'save-indicator saving';
+      _saveIndicator.innerHTML = '<span class="spin-icon">🔄</span> 저장 중...';
+      _saveIndicator.className = `${baseClass} saving`;
       break;
     case 'saved':
-      _saveIndicator.textContent = '✅ 저장 완료';
-      _saveIndicator.className = 'save-indicator saved';
-      // 3초 후 표시 숨김
+      _saveIndicator.innerHTML = '✅ 저장 완료';
+      _saveIndicator.className = `${baseClass} saved`;
+      // 3초 후 초기화
       setTimeout(() => {
         if (_saveIndicator.className.includes('saved')) {
-          _saveIndicator.className = 'save-indicator';
+          _saveIndicator.className = baseClass;
+          _saveIndicator.innerHTML = '';
         }
       }, 3000);
       break;
     case 'error':
-      _saveIndicator.textContent = '⚠️ 저장 실패';
-      _saveIndicator.className = 'save-indicator error';
+      _saveIndicator.innerHTML = '❌ 저장 실패';
+      _saveIndicator.className = `${baseClass} error`;
       break;
     default:
-      _saveIndicator.className = 'save-indicator';
+      _saveIndicator.className = baseClass;
+      _saveIndicator.innerHTML = '';
   }
 }
 

@@ -143,8 +143,10 @@ async function _performSave() {
 async function loadStateFromFirestore() {
   if (!currentUser) return;
 
-  // 로딩 오버레이를 표시하지 않음 (사용자 대기 시간 제거)
-  console.log('🔄 클라우드 데이터 백그라운드 로딩 시작...');
+  const loadingEl = document.getElementById('loadingOverlay');
+  if (loadingEl) loadingEl.classList.remove('hidden');
+
+  console.log('🔄 클라우드 데이터 병렬 로딩 시작...');
 
   try {
     const uid = currentUser.uid;
@@ -210,6 +212,8 @@ async function loadStateFromFirestore() {
       console.error('로컬 백업 복원 실패:', e);
     }
   } finally {
+    if (loadingEl) loadingEl.classList.add('hidden');
+    
     // UI 전체 갱신
     if (typeof updateClassSelect === 'function') updateClassSelect();
     if (typeof renderSeating === 'function') renderSeating();

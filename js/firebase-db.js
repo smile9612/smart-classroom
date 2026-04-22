@@ -143,13 +143,21 @@ async function loadStateFromFirestore() {
   try {
     const uid = currentUser.uid;
     const userDocRef = db.collection('users').doc(uid);
+    const dataCol = userDocRef.collection('data');
 
-    // 메인 설정 문서 불러오기
-    const mainDoc = await userDocRef.get();
+    console.log('🔄 클라우드 데이터 병렬 로딩 시작...');
 
+    // 4개 문서를 동시에 요청 (로딩 속도 최적화)
+    const [mainDoc, behaviorDoc, attendanceDoc, counselingDoc] = await Promise.all([
+      userDocRef.get(),
+      dataCol.doc('behaviors').get(),
+      dataCol.doc('attendance').get(),
+      dataCol.doc('counseling').get()
+    ]);
+
+    // 1. 메인 설정
     if (mainDoc.exists) {
       const data = mainDoc.data();
-      
       // appState에 병합 (기본값 유지하면서 덮어쓰기)
       if (data.classes) appState.classes = data.classes;
       if (data.currentClassId) appState.currentClassId = data.currentClassId;
@@ -162,34 +170,25 @@ async function loadStateFromFirestore() {
       if (data.theme) appState.theme = data.theme;
       if (typeof data.sidebarCollapsed !== 'undefined') appState.sidebarCollapsed = data.sidebarCollapsed;
       if (typeof data.tabsCollapsed !== 'undefined') appState.tabsCollapsed = data.tabsCollapsed;
-
-      console.log('📥 메인 설정 불러오기 완료');
-    } else {
-      console.log('📋 새 사용자 - 초기 데이터를 생성합니다.');
+      console.log('📥 메인 설정 로드 완료');
     }
 
-    // 행동 기록 불러오기
-    const behaviorDoc = await userDocRef.collection('data').doc('behaviors').get();
+    // 2. 행동 기록
     if (behaviorDoc.exists && behaviorDoc.data().records) {
       appState.behaviors = behaviorDoc.data().records;
-      console.log(`📥 행동 기록 ${appState.behaviors.length}건 불러오기 완료`);
     }
 
-    // 출결 기록 불러오기
-    const attendanceDoc = await userDocRef.collection('data').doc('attendance').get();
+    // 3. 출결 기록
     if (attendanceDoc.exists && attendanceDoc.data().records) {
       appState.attendance = attendanceDoc.data().records;
-      console.log(`📥 출결 기록 ${appState.attendance.length}건 불러오기 완료`);
     }
 
-    // 상담 기록 불러오기
-    const counselingDoc = await userDocRef.collection('data').doc('counseling').get();
+    // 4. 상담 기록
     if (counselingDoc.exists && counselingDoc.data().records) {
       appState.counselingRecords = counselingDoc.data().records;
-      console.log(`📥 상담 기록 ${appState.counselingRecords.length}건 불러오기 완료`);
     }
 
-    console.log('✅ 모든 데이터 불러오기 완료');
+    console.log('✅ 클라우드 모든 데이터 로드 완료');
 
   } catch (error) {
     console.error('Firestore 불러오기 실패:', error);
@@ -200,14 +199,21 @@ async function loadStateFromFirestore() {
       const backup = localStorage.getItem('smartClassroom_backup');
       if (backup) {
         const parsed = JSON.parse(backup);
-        appState = { ...appState, ...parsed };
+        Object.assign(appState, parsed);
         showToast('로컬 백업에서 데이터를 복원했습니다.', 'warning');
       }
     } catch (e) {
-      console.error('로컬 백업 복원도 실패:', e);
+      console.error('로컬 백업 복원 실패:', e);
     }
   } finally {
     if (loadingEl) loadingEl.classList.add('hidden');
+    
+    // UI 전체 갱신
+    if (typeof updateClassSelect === 'function') updateClassSelect();
+    if (typeof renderSeating === 'function') renderSeating();
+    if (typeof renderStudentSidebar === 'function') renderStudentSidebar();
+    if (typeof applyTheme === 'function') applyTheme();
+    if (typeof applyLayoutSettings === 'function') applyLayoutSettings();
   }
 }
 

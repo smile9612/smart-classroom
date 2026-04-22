@@ -108,8 +108,8 @@
     <button class="tab-btn" data-tab="counseling">📋 상담일지</button>
     <button class="tab-btn" data-tab="timetable">📅 주간 시간표</button>
     <button class="tab-btn" data-tab="stats">📊 통계 &amp; 내보내기</button>
-    <!-- 클라우드 저장 상태 표시 (탭 옆으로 이동) -->
-    <div id="saveIndicator" class="save-indicator tab-side"></div>
+    <!-- 클라우드 저장 상태 표시 (ID 변경으로 캐시 충돌 방지) -->
+    <div id="saveIndicatorCloud" class="save-indicator tab-side"></div>
   </nav>
 
   <!-- ===== 탭 콘텐츠 ===== -->

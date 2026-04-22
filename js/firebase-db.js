@@ -14,7 +14,7 @@ let _saveIndicator = null;
 /** 저장 상태 표시 업데이트 */
 function updateSaveIndicator(status) {
   if (!_saveIndicator) {
-    _saveIndicator = document.getElementById('saveIndicator');
+    _saveIndicator = document.getElementById('saveIndicatorCloud');
   }
   if (!_saveIndicator) return;
 
@@ -143,15 +143,13 @@ async function _performSave() {
 async function loadStateFromFirestore() {
   if (!currentUser) return;
 
-  const loadingEl = document.getElementById('loadingOverlay');
-  if (loadingEl) loadingEl.classList.remove('hidden');
+  // 로딩 오버레이를 표시하지 않음 (사용자 대기 시간 제거)
+  console.log('🔄 클라우드 데이터 백그라운드 로딩 시작...');
 
   try {
     const uid = currentUser.uid;
     const userDocRef = db.collection('users').doc(uid);
     const dataCol = userDocRef.collection('data');
-
-    console.log('🔄 클라우드 데이터 병렬 로딩 시작...');
 
     // 4개 문서를 동시에 요청 (로딩 속도 최적화)
     const [mainDoc, behaviorDoc, attendanceDoc, counselingDoc] = await Promise.all([
@@ -212,8 +210,6 @@ async function loadStateFromFirestore() {
       console.error('로컬 백업 복원 실패:', e);
     }
   } finally {
-    if (loadingEl) loadingEl.classList.add('hidden');
-    
     // UI 전체 갱신
     if (typeof updateClassSelect === 'function') updateClassSelect();
     if (typeof renderSeating === 'function') renderSeating();

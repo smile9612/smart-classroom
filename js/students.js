@@ -88,6 +88,7 @@ function renderStudentSidebar() {
       chip.dataset.studentId = student.id;
 
       chip.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', student.id);
         e.dataTransfer.setData('studentId', student.id);
         e.dataTransfer.setData('source', 'unassigned');
         chip.classList.add('dragging');

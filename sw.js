@@ -1,4 +1,4 @@
-const CACHE_NAME = 'smart-class-cache-v6';
+const CACHE_NAME = 'smart-class-cache-v7';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -27,12 +27,19 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('fetch', event => {
-  // 네트워크 요청 가로채기
+  // 네트워크 요청 우선 (Network-First) 전략
   event.respondWith(
-    caches.match(event.request)
+    fetch(event.request)
       .then(response => {
-        // 캐시에 있으면 캐시 반환, 없으면 네트워크 요청
-        return response || fetch(event.request);
+        // 네트워크 요청 성공 시 캐시 업데이트 후 반환
+        return caches.open(CACHE_NAME).then(cache => {
+          cache.put(event.request, response.clone());
+          return response;
+        });
+      })
+      .catch(() => {
+        // 네트워크 실패 시 캐시에서 확인
+        return caches.match(event.request);
       })
   );
 });

@@ -6,6 +6,8 @@
    - 번호 표시/숨김 토글
    ========================================== */
 
+console.log('seating.js loaded');
+
 // ── 모드 상태 변수 ──
 let genderModeActive = false;   // 성별 자리 설정 모드
 let swapModeActive = false;     // 교체 모드
@@ -83,6 +85,17 @@ function renderSeating() {
     return;
   }
 
+  // 데이터 타입 안전성 확보
+  cls.gridRows = parseInt(cls.gridRows) || 5;
+  cls.gridCols = parseInt(cls.gridCols) || 6;
+
+  console.log('renderSeating: Rendering grid', { 
+    rows: cls.gridRows, 
+    cols: cls.gridCols, 
+    studentsCount: cls.students.length,
+    seatsCount: Object.keys(cls.seats || {}).length 
+  });
+
   // seatGenders 초기화 보장
   if (!cls.seatGenders) cls.seatGenders = {};
 
@@ -115,6 +128,12 @@ function renderSeating() {
       const key = `${row}-${col}`;
       const studentId = cls.seats[key];
       const student = studentId ? cls.students.find(s => s.id === studentId) : null;
+
+      if (studentId && !student) {
+        console.warn(`renderSeating: Student ID ${studentId} not found, cleaning seat ${key}`);
+        delete cls.seats[key];
+      }
+
       const seatGender = getSeatGenderInfo(cls, key);
 
       const cell = document.createElement('div');
@@ -158,11 +177,13 @@ function renderSeating() {
         // 드래그 이벤트 (교체 모드가 아니고 결석이 아니며 일괄 기록 모드가 아닐 때만)
         if (!swapModeActive && !isAbsent && !appState.isBulkMode) {
           card.addEventListener('dragstart', (e) => {
+            // 호환성을 위해 text/plain도 설정
+            e.dataTransfer.setData('text/plain', student.id);
             e.dataTransfer.setData('studentId', student.id);
             e.dataTransfer.setData('source', 'seat');
             e.dataTransfer.setData('sourceKey', key);
             card.classList.add('dragging');
-            e.stopPropagation();
+            // e.stopPropagation() 제거 -> document 레벨의 dragstart 리스너가 작동하게 함
           });
           card.addEventListener('dragend', () => card.classList.remove('dragging'));
         }
@@ -210,6 +231,7 @@ function renderSeating() {
       // 드롭 영역 이벤트
       cell.addEventListener('dragover', (e) => {
         e.preventDefault();
+        e.dataTransfer.dropEffect = 'move'; // 드롭 효과 명시
         cell.classList.add('drag-over');
       });
       cell.addEventListener('dragleave', () => cell.classList.remove('drag-over'));
@@ -284,11 +306,17 @@ function handleSwapClick(clickedKey) {
 
 /** 드롭 처리 */
 function handleDrop(e, targetKey) {
-  const studentId = e.dataTransfer.getData('studentId');
+  const studentId = e.dataTransfer.getData('studentId') || e.dataTransfer.getData('text/plain');
   const source = e.dataTransfer.getData('source');
   const sourceKey = e.dataTransfer.getData('sourceKey');
   const cls = getCurrentClass();
-  if (!cls || !studentId) return;
+
+  console.log('handleDrop - 드롭 이벤트 발생:', { studentId, source, sourceKey, targetKey });
+
+  if (!cls || !studentId) {
+    console.warn('handleDrop: 필요한 데이터가 없습니다.', { cls: !!cls, studentId });
+    return;
+  }
 
   const targetStudentId = cls.seats[targetKey];
 
@@ -486,8 +514,21 @@ function updateModeStatus() {
 // ── 자리 배치도 UI 이벤트 ──
 document.addEventListener('DOMContentLoaded', () => {
   // 드래그 상태 추적
-  document.addEventListener('dragstart', () => window._isDragging = true);
-  document.addEventListener('dragend', () => setTimeout(() => window._isDragging = false, 100));
+  // 드래그 상태 전역 관리
+  window._isDragging = false; 
+  document.addEventListener('dragstart', () => {
+    window._isDragging = true;
+    console.log('Global dragstart');
+  });
+  document.addEventListener('dragend', () => {
+    console.log('Global dragend');
+    setTimeout(() => window._isDragging = false, 100);
+  });
+  // 드롭 시에도 드래그 상태 해제 보장
+  document.addEventListener('drop', () => {
+    console.log('Global drop');
+    setTimeout(() => window._isDragging = false, 100);
+  });
 
   // 번호 표시 토글
   const toggleShowNumbers = document.getElementById('toggleShowNumbers');

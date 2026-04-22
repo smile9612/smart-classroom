@@ -124,9 +124,8 @@ async function _performSave() {
     // 실패 시 로컬스토리지에 백업 저장
     try {
       localStorage.setItem('smartClassroom_backup', JSON.stringify(appState));
-      console.log('📦 로컬 백업 저장 완료');
     } catch (e) {
-      console.error('로컬 백업도 실패:', e);
+      console.error('로컬 백업 실패:', e);
     }
   }
 }

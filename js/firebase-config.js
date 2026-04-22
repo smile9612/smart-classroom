@@ -19,15 +19,15 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-// Firestore 오프라인 캐시 활성화 (한 번만 호출)
+// Firestore 오프라인 캐시 활성화
 db.enablePersistence({ synchronizeTabs: true })
   .catch((err) => {
-    if (err.code === 'failed-precondition') {
-      // 다중 탭에서 사용 시 발생 가능 – 무시
-      console.warn('Firestore 오프라인 캐시: 다중 탭 환경에서는 제한됩니다.');
-    } else if (err.code === 'unimplemented') {
-      console.warn('Firestore 오프라인 캐시: 이 브라우저에서 지원되지 않습니다.');
-    }
+    console.warn('Firestore Persistence Error:', err.code);
   });
+
+// 강제 온라인 전환 (오프라인 멈춤 현상 방지)
+db.enableNetwork()
+  .then(() => console.log('🌐 Firestore Online Status: Enabled'))
+  .catch((err) => console.error('Firestore Online Status Error:', err));
 
 console.log('✅ Firebase 초기화 완료');

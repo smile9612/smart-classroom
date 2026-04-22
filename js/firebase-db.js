@@ -119,6 +119,10 @@ async function _performSave() {
     console.error('Firestore 저장 실패:', error);
     updateSaveIndicator('error');
     
+    // 실패 시 네트워크 재설정 시도 (오프라인 고착 현상 복구)
+    console.log('🔄 네트워크 재설정 시도 중...');
+    db.disableNetwork().then(() => db.enableNetwork());
+
     // 실패 시 로컬스토리지에 백업 저장
     try {
       localStorage.setItem('smartClassroom_backup', JSON.stringify(appState));
@@ -226,9 +230,9 @@ async function saveCounselingToFirestore() {
     const uid = currentUser.uid;
     await db.collection('users').doc(uid).collection('data').doc('counseling').set({
       records: appState.counselingRecords || [],
-      lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+      lastUpdated: new Date().toISOString()
     });
-    console.log('☁️ 상담 기록 저장 완료');
+    console.log('☁️ 상담 기록 개별 저장 완료');
   } catch (error) {
     console.error('상담 기록 저장 실패:', error);
   }

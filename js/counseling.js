@@ -369,12 +369,8 @@ function updateCounselingFilters() {
   }
 }
 
-// 스크립트 로드 시 전역 노출 및 초기화
-document.addEventListener('DOMContentLoaded', () => {
-  if (typeof appState !== 'undefined') {
-    initCounseling();
-  }
-});
+// 클라우드 버전: auth.js의 onAuthStateChanged → initApp() → initCounseling() 순서로 호출됩니다.
+// DOMContentLoaded에서 자동 초기화하지 않습니다.
 
 // 전역 함수 노출 (HTML 인라인 이벤트 핸들러용)
 window.renderCounselingList = renderCounselingList;

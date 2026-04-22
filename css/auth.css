@@ -1,0 +1,388 @@
+/* ==========================================
+   auth.css - 로그인 화면 및 인증 관련 스타일
+   프리미엄 글래스모피즘 디자인
+   ========================================== */
+
+/* ── 로그인 화면 전체 배경 ── */
+.login-screen {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0a0e1a 0%, #1a1040 30%, #0d1f3c 60%, #0a0e1a 100%);
+  overflow-y: auto;
+  padding: 20px;
+}
+
+/* 배경 애니메이션 (그라디언트 오브) */
+.login-screen::before {
+  content: '';
+  position: absolute;
+  top: -50%; left: -50%;
+  width: 200%; height: 200%;
+  background: 
+    radial-gradient(ellipse at 20% 50%, rgba(99, 102, 241, 0.12) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(236, 72, 153, 0.1) 0%, transparent 50%),
+    radial-gradient(ellipse at 60% 80%, rgba(34, 211, 238, 0.08) 0%, transparent 50%);
+  animation: loginBgPulse 15s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes loginBgPulse {
+  0% { transform: translateY(0) rotate(0deg); }
+  100% { transform: translateY(-30px) rotate(3deg); }
+}
+
+/* ── 로그인 컨테이너 ── */
+.login-container {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 30px;
+  max-width: 440px;
+  width: 100%;
+  animation: loginFadeIn 0.8s ease-out;
+}
+
+@keyframes loginFadeIn {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── 로고 영역 ── */
+.login-logo {
+  text-align: center;
+}
+
+.login-icon {
+  font-size: 4rem;
+  display: block;
+  margin-bottom: 10px;
+  animation: loginIconBounce 2s ease-in-out infinite;
+}
+
+@keyframes loginIconBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.login-title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #fff;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.login-subtitle {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 5px 0 0;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+/* ── 로그인 카드 (글래스모피즘) ── */
+.login-card {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 35px 30px;
+  text-align: center;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.login-card-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 10px;
+}
+
+.login-card-desc {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1.6;
+  margin: 0 0 25px;
+}
+
+/* ── 구글 로그인 버튼 ── */
+.btn-google-login {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 24px;
+  background: #fff;
+  color: #1f1f1f;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.btn-google-login:hover {
+  background: #f0f0f0;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+
+.btn-google-login:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.btn-google-login:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.google-icon {
+  width: 22px;
+  height: 22px;
+}
+
+/* 로그인 스피너 */
+.login-spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(0, 0, 0, 0.15);
+  border-top-color: #4285f4;
+  border-radius: 50%;
+  animation: loginSpin 0.7s linear infinite;
+}
+
+@keyframes loginSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── 에러 메시지 ── */
+.login-error {
+  margin-top: 15px;
+  padding: 10px 14px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 10px;
+  color: #fca5a5;
+  font-size: 0.85rem;
+}
+
+/* ── 기능 소개 (하단) ── */
+.login-features {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+}
+
+.feature-item {
+  text-align: center;
+  opacity: 0.65;
+  transition: opacity 0.3s;
+}
+
+.feature-item:hover {
+  opacity: 1;
+}
+
+.feature-item span {
+  font-size: 1.6rem;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.feature-item p {
+  margin: 0;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 500;
+}
+
+.login-footer {
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.25);
+  margin: 0;
+  letter-spacing: 0.05em;
+}
+
+/* ── 데이터 로딩 오버레이 ── */
+.loading-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 14, 26, 0.85);
+  backdrop-filter: blur(8px);
+}
+
+.loading-content {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.loading-spinner-large {
+  width: 48px;
+  height: 48px;
+  border: 4px solid rgba(255, 255, 255, 0.1);
+  border-top-color: var(--accent, #6366f1);
+  border-radius: 50%;
+  animation: loginSpin 0.8s linear infinite;
+  margin: 0 auto 16px;
+}
+
+/* ── 헤더 사용자 프로필 ── */
+.user-profile-area {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+  padding-left: 8px;
+  border-left: 1px solid var(--border, rgba(255,255,255,0.1));
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: default;
+}
+
+.user-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--accent, #6366f1);
+  object-fit: cover;
+}
+
+.user-avatar-placeholder {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--bg-secondary, #1e1e2e);
+  border: 2px solid var(--border, rgba(255,255,255,0.1));
+  font-size: 0.9rem;
+}
+
+.user-name {
+  font-size: 0.78rem;
+  color: var(--text-secondary, rgba(255,255,255,0.7));
+  font-weight: 500;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-logout {
+  font-size: 1rem !important;
+  padding: 4px 6px !important;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.btn-logout:hover {
+  opacity: 1;
+}
+
+/* ── 클라우드 저장 상태 인디케이터 ── */
+.save-indicator {
+  font-size: 0.72rem;
+  padding: 3px 8px;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.save-indicator.saving {
+  opacity: 1;
+  background: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
+}
+
+.save-indicator.saved {
+  opacity: 1;
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  animation: savedPulse 0.4s ease;
+}
+
+.save-indicator.error {
+  opacity: 1;
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+}
+
+@keyframes savedPulse {
+  0% { transform: scale(0.95); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+/* ── 라이트 모드 대응 ── */
+.light-mode .login-screen {
+  background: linear-gradient(135deg, #f0f2ff 0%, #e8e0ff 30%, #dbe8ff 60%, #f0f2ff 100%);
+}
+
+.light-mode .login-screen::before {
+  background: 
+    radial-gradient(ellipse at 20% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(236, 72, 153, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 60% 80%, rgba(34, 211, 238, 0.06) 0%, transparent 50%);
+}
+
+.light-mode .login-title { color: #1f2937; }
+.light-mode .login-subtitle { color: rgba(31, 41, 55, 0.5); }
+.light-mode .login-card {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+}
+.light-mode .login-card-title { color: #1f2937; }
+.light-mode .login-card-desc { color: rgba(31, 41, 55, 0.6); }
+.light-mode .feature-item p { color: rgba(31, 41, 55, 0.5); }
+.light-mode .login-footer { color: rgba(31, 41, 55, 0.3); }
+.light-mode .login-error {
+  background: rgba(239, 68, 68, 0.08);
+  color: #dc2626;
+}
+
+/* ── 반응형 (모바일) ── */
+@media (max-width: 480px) {
+  .login-title { font-size: 1.6rem; }
+  .login-card { padding: 25px 20px; }
+  .login-features { gap: 12px; }
+  .feature-item span { font-size: 1.3rem; }
+  .user-name { display: none; }
+  .user-profile-area { margin-left: 4px; padding-left: 4px; }
+}
+
+/* ── 반응형 (태블릿) ── */
+@media (max-width: 768px) {
+  .user-name { max-width: 60px; }
+}

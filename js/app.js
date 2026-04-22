@@ -75,7 +75,8 @@ let appState = {
   },
   theme: 'dark',           // 테마 ('dark' 또는 'light')
   sidebarCollapsed: false, // 사이드바 숨김 상태
-  tabsCollapsed: false     // 탭 숨김 상태
+  tabsCollapsed: false,    // 탭 숨김 상태
+  counselingRecords: []    // 상담일지 기록 전체
 };
 
 // ── 전역 앱 관리 객체 ──
@@ -101,26 +102,19 @@ function formatDate(dateStr) {
   return `${d.getMonth() + 1}월 ${d.getDate()}일`;
 }
 
-/** LocalStorage 저장 */
-function saveState() {
+/** LocalStorage 저장 (로컬 백업용 - firebase-db.js의 saveState()가 주력으로 사용됩니다) */
+function _saveStateLocal() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
   } catch (e) {
-    showToast('저장 공간이 부족합니다.', 'error');
+    console.warn('로컬 저장 실패 (클라우드 버전에서는 정상):', e);
   }
 }
 
-/** LocalStorage 불러오기 */
+/** LocalStorage 불러오기 (로컬 백업 복원용 - 클라우드 버전에서는 firebase-db.js의 loadStateFromFirestore()가 대신 사용됩니다) */
 function loadState() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      appState = { ...appState, ...parsed };
-    }
-  } catch (e) {
-    console.error('상태 불러오기 실패:', e);
-  }
+  // 클라우드 버전: Firestore에서 데이터를 불러오므로 로컬 불러오기는 무시
+  console.log('loadState() 호출됨 - 클라우드 버전에서는 Firestore에서 로드합니다.');
 }
 
 /** 현재 학급 가져오기 */
@@ -609,10 +603,14 @@ function initApp() {
   // 테마 초기화
   applyTheme();
 
+  // 상담일지 모듈 초기화
+  if (typeof initCounseling === 'function') initCounseling();
+
   // 초기 화면 렌더
   renderSeating();
   renderStudentSidebar();
 }
 
-// DOMContentLoaded 후 실행
-document.addEventListener('DOMContentLoaded', initApp);
+// 클라우드 버전: auth.js의 onAuthStateChanged에서 로그인 성공 후 initApp()을 호출합니다.
+// DOMContentLoaded에서 자동 실행하지 않습니다.
+// document.addEventListener('DOMContentLoaded', initApp);

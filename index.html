@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>스마트 교실 관리 시스템</title>
-  <meta name="description" content="드래그 앤 드롭 자리 배치, 원클릭 행동 기록, 출결 관리, 나이스 연계 CSV 내보내기를 지원하는 교사용 스마트 교실 관리 도구" />
+  <title>스마트 교실 관리 시스템 (클라우드)</title>
+  <meta name="description" content="교사용 클라우드 기반 스마트 교실 관리 도구. 구글 로그인으로 안전하게 자리배치, 행동기록, 출결, 시간표를 관리하세요." />
   
   <!-- PWA 설정 (안드로이드, 크롬) -->
   <link rel="manifest" href="manifest.json">
@@ -20,17 +20,61 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/auth.css">
+  
   <!-- PDF 생성을 위한 라이브러리 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  
+  <!-- Firebase SDK (CDN - 호환성 빌드 v9 compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 </head>
 <body>
+
+  <!-- ===== 로그인 화면 ===== -->
+  <div id="loginScreen" class="login-screen">
+    <div class="login-container">
+      <div class="login-logo">
+        <span class="login-icon">🏫</span>
+        <h1 class="login-title">스마트 교실 관리</h1>
+        <p class="login-subtitle">클라우드 버전</p>
+      </div>
+      <div class="login-card">
+        <h2 class="login-card-title">교사 로그인</h2>
+        <p class="login-card-desc">구글 계정으로 로그인하여<br>나만의 학급 데이터를 안전하게 관리하세요.</p>
+        <button id="btnGoogleLogin" class="btn-google-login">
+          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" class="google-icon" />
+          Google 계정으로 로그인
+        </button>
+        <p id="loginError" class="login-error hidden"></p>
+      </div>
+      <div class="login-features">
+        <div class="feature-item"><span>☁️</span><p>클라우드 자동 저장</p></div>
+        <div class="feature-item"><span>🔒</span><p>안전한 개인 데이터</p></div>
+        <div class="feature-item"><span>📱</span><p>어디서든 접속</p></div>
+      </div>
+      <p class="login-footer">v2.0.0 Cloud Edition &middot; Data secured by Firebase</p>
+    </div>
+  </div>
+
+  <!-- ===== 데이터 로딩 오버레이 ===== -->
+  <div id="loadingOverlay" class="loading-overlay hidden">
+    <div class="loading-content">
+      <div class="loading-spinner-large"></div>
+      <p>데이터를 불러오는 중...</p>
+    </div>
+  </div>
+
+  <!-- ===== 메인 앱 컨테이너 (로그인 후 표시) ===== -->
+  <div id="appContainer" class="hidden">
 
   <!-- ===== 상단 헤더 ===== -->
   <header class="app-header">
     <div class="header-left">
       <button id="btnToggleTabs" class="btn btn-ghost btn-sm" title="메뉴 토글" style="font-size: 1.2rem; margin-right: 5px;">☰</button>
       <span class="app-icon">🏫</span>
-      <h1 class="app-title">스마트 교실 관리 <small style="font-size: 0.65rem; color: var(--text-muted); font-weight: 400; vertical-align: bottom;">v1.7.5 (Auto-deploy)</small></h1>
+      <h1 class="app-title">스마트 교실 관리 <small style="font-size: 0.65rem; color: var(--text-muted); font-weight: 400; vertical-align: bottom;">v2.0.0 ☁️ Cloud</small></h1>
     </div>
     <div class="header-center">
       <!-- 학급 선택 드롭다운 -->
@@ -47,10 +91,14 @@
     </div>
     <div class="header-right">
       <span id="todayDisplay" class="today-badge"></span>
+      <!-- 클라우드 저장 상태 표시 -->
+      <span id="saveIndicator" class="save-indicator"></span>
       <button id="btnToggleSidebar" class="btn btn-ghost" title="명단 토글 (목록 숨김/보임)">📊 <span>명단 토글</span></button>
       <button id="btnPresentation" class="btn btn-ghost" title="발표 모드 (사이드바 숨김 & 확대)">🖥️ <span>발표 모드</span></button>
       <button id="btnStudentView" class="btn btn-ghost" title="학생 시각으로 화면 전환 (칠판 위로)">📽️ <span>학생 시점</span></button>
       <button id="btnRandom" class="btn btn-accent" title="무작위 발표자 뽑기">🎲 <span>랜덤 뽑기</span></button>
+      <!-- 사용자 프로필 영역 -->
+      <div id="userProfile" class="user-profile-area"></div>
     </div>
   </header>
 
@@ -708,9 +756,23 @@
     </div>
   </div>
 
+  </div> <!-- /appContainer -->
+
   <!-- ===== JS 로드 ===== -->
+  <!-- 1. Firebase 초기화 (가장 먼저) -->
+  <script src="js/firebase-config.js"></script>
+  
+  <!-- 2. 앱 코어 (전역 상태, 상수 정의) -->
   <script src="js/phrases.js"></script>
   <script src="js/app.js"></script>
+  
+  <!-- 3. Firebase 데이터 레이어 (saveState 오버라이드) -->
+  <script src="js/firebase-db.js"></script>
+  
+  <!-- 4. Firebase 인증 (로그인/로그아웃 관리) -->
+  <script src="js/auth.js"></script>
+  
+  <!-- 5. 기능 모듈 -->
   <script src="js/students.js"></script>
   <script src="js/seating.js"></script>
   <script src="js/attendance.js"></script>

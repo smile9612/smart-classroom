@@ -372,17 +372,26 @@
   color: #dc2626;
 }
 
-/* ── 반응형 (모바일) ── */
-@media (max-width: 480px) {
-  .login-title { font-size: 1.6rem; }
-  .login-card { padding: 25px 20px; }
-  .login-features { gap: 12px; }
-  .feature-item span { font-size: 1.3rem; }
-  .user-name { display: none; }
-  .user-profile-area { margin-left: 4px; padding-left: 4px; }
+/* ── 반응형 (모바일/태블릿) ── */
+@media (max-width: 1024px) {
+  .app-header button span { display: none; }
+  .app-header button { padding: 6px 8px !important; min-width: 36px; }
+  .app-title small { display: none; }
+  .header-center { gap: 8px; }
 }
 
-/* ── 반응형 (태블릿) ── */
 @media (max-width: 768px) {
-  .user-name { max-width: 60px; }
+  .user-name { display: none; }
+  .save-indicator { max-width: 50px; overflow: hidden; text-overflow: ellipsis; }
+  .header-left { gap: 5px; }
+}
+
+/* 헤더 요소들이 찌그러지지 않도록 보호 */
+.header-controls, .header-right, .header-left {
+  flex-shrink: 0;
+}
+
+.header-center {
+  min-width: 0;
+  flex: 1;
 }

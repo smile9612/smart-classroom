@@ -90,7 +90,7 @@ async function _performSave() {
       theme: appState.theme || 'dark',
       sidebarCollapsed: appState.sidebarCollapsed || false,
       tabsCollapsed: appState.tabsCollapsed || false,
-      lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+      lastUpdated: new Date().toISOString()
     };
 
     // 메인 설정 문서 저장
@@ -99,19 +99,19 @@ async function _performSave() {
     // 행동 기록 (별도 문서로 저장 - 데이터 크기 분리)
     await userDocRef.collection('data').doc('behaviors').set({
       records: appState.behaviors || [],
-      lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+      lastUpdated: new Date().toISOString()
     });
 
     // 출결 기록 (별도 문서로 저장)
     await userDocRef.collection('data').doc('attendance').set({
       records: appState.attendance || [],
-      lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+      lastUpdated: new Date().toISOString()
     });
 
     // 상담 기록 (별도 문서로 저장)
     await userDocRef.collection('data').doc('counseling').set({
       records: appState.counselingRecords || [],
-      lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+      lastUpdated: new Date().toISOString()
     });
 
     updateSaveIndicator('saved');

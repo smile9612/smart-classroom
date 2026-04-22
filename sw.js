@@ -1,4 +1,4 @@
-const CACHE_NAME = 'smart-class-cache-v7';
+const CACHE_NAME = 'smart-class-cache-v8';
 const urlsToCache = [
   '/',
   '/index.html',

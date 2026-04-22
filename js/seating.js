@@ -160,7 +160,7 @@ function renderSeating() {
         cell.classList.add('occupied');
         cell.innerHTML = `
           <div class="student-card ${genderClass} ${isSelected ? 'is-selected-bulk' : ''}" 
-               draggable="${!swapModeActive && !isAbsent && !appState.isBulkMode}"
+               draggable="${!swapModeActive && !isAbsent}"
                data-student-id="${student.id}"
                data-seat-key="${key}">
             ${showNums ? `<span class="student-number">${student.number}번</span>` : ''}
@@ -174,8 +174,8 @@ function renderSeating() {
 
         const card = cell.querySelector('.student-card');
 
-        // 드래그 이벤트 (교체 모드가 아니고 결석이 아니며 일괄 기록 모드가 아닐 때만)
-        if (!swapModeActive && !isAbsent && !appState.isBulkMode) {
+        // 드래그 이벤트 (교체 모드가 아니고 결석이 아닐 때만 - 일괄 기록 모드에서도 이동은 가능하게 허용)
+        if (!swapModeActive && !isAbsent) {
           card.addEventListener('dragstart', (e) => {
             // 호환성을 위해 text/plain도 설정
             e.dataTransfer.setData('text/plain', student.id);

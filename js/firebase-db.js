@@ -43,13 +43,19 @@ function updateSaveIndicator(status) {
 }
 
 /** 
- * Firestore에 전체 앱 상태 저장 (디바운스 적용)
- * 기존 saveState()를 대체합니다.
+ * Firestore에 전체 앱 상태 저장
+ * @param {boolean} isImmediate true일 경우 디바운스 없이 즉시 저장 (복원 등 중요 작업 시)
  */
-function saveState() {
+function saveState(isImmediate = false) {
   // 로그인되지 않은 경우 무시
   if (!currentUser) {
     console.warn('로그인되지 않아 저장을 건너뜁니다.');
+    return;
+  }
+
+  if (isImmediate) {
+    clearTimeout(_saveDebounceTimer);
+    _performSave();
     return;
   }
 

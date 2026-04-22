@@ -250,6 +250,7 @@ function restoreFromJson(file) {
       appState.classes = data.classes || [];
       appState.behaviors = data.behaviors || [];
       appState.attendance = data.attendance || [];
+      appState.counselingRecords = data.counselingRecords || [];
       appState.currentClassId = data.currentClassId || data.classes[0]?.id || null;
       
       // ★ 추가 유실 방지: 시간표 및 설정 데이터 모두 복원
@@ -259,13 +260,20 @@ function restoreFromJson(file) {
       appState.termSettings = data.termSettings || appState.termSettings;
       appState.holidays = data.holidays || [];
       appState.theme = data.theme || 'dark';
-      saveState();
 
-      updateClassSelect();
-      renderSeating();
-      renderStudentSidebar();
-      showToast('데이터가 성공적으로 복원되었습니다.', 'success');
+      // Firestore에 즉시 저장
+      saveState(true);
+
+      showToast('데이터를 클라우드에 업로드 중입니다...', 'info');
+
+      // 저장이 처리될 수 있도록 약간의 지연 후 새로고침 (가장 확실한 반영 방법)
+      setTimeout(() => {
+        alert('데이터 복원이 완료되었습니다. 앱을 재시작합니다.');
+        location.reload();
+      }, 1500);
+
     } catch (err) {
+      console.error('Restore Error:', err);
       showToast('파일을 읽는 중 오류가 발생했습니다.', 'error');
     }
   };

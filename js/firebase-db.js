@@ -72,12 +72,19 @@ async function _performSave() {
 
   updateSaveIndicator('saving');
 
+  // 타임아웃 처리 (7초 내에 완료되지 않으면 에러로 간주)
+  const saveTimeout = setTimeout(() => {
+    console.warn('⚠️ Firestore 저장 타임아웃 발생 (7초 경과)');
+    updateSaveIndicator('error');
+    showToast('저장 시간이 오래 걸리고 있습니다. 네트워크를 확인해주세요.', 'warning');
+  }, 7000);
+
   try {
     const uid = currentUser.uid;
     const userDocRef = db.collection('users').doc(uid);
+    const dataCol = userDocRef.collection('data');
+    const now = new Date().toISOString();
 
-    // appState를 Firestore 문서로 저장
-    // Firestore 문서 크기 제한(1MB)에 대비하여 하위 컬렉션으로 분리
     const stateToSave = {
       classes: appState.classes || [],
       currentClassId: appState.currentClassId || null,
@@ -90,34 +97,25 @@ async function _performSave() {
       theme: appState.theme || 'dark',
       sidebarCollapsed: appState.sidebarCollapsed || false,
       tabsCollapsed: appState.tabsCollapsed || false,
-      lastUpdated: new Date().toISOString()
+      lastUpdated: now
     };
 
-    // 메인 설정 문서 저장
-    await userDocRef.set(stateToSave, { merge: true });
+    console.log('🔄 클라우드 데이터 병렬 저장 시작...');
 
-    // 행동 기록 (별도 문서로 저장 - 데이터 크기 분리)
-    await userDocRef.collection('data').doc('behaviors').set({
-      records: appState.behaviors || [],
-      lastUpdated: new Date().toISOString()
-    });
+    // 4개 영역을 동시에 저장 (저장 속도 최적화)
+    await Promise.all([
+      userDocRef.set(stateToSave, { merge: true }),
+      dataCol.doc('behaviors').set({ records: appState.behaviors || [], lastUpdated: now }),
+      dataCol.doc('attendance').set({ records: appState.attendance || [], lastUpdated: now }),
+      dataCol.doc('counseling').set({ records: appState.counselingRecords || [], lastUpdated: now })
+    ]);
 
-    // 출결 기록 (별도 문서로 저장)
-    await userDocRef.collection('data').doc('attendance').set({
-      records: appState.attendance || [],
-      lastUpdated: new Date().toISOString()
-    });
-
-    // 상담 기록 (별도 문서로 저장)
-    await userDocRef.collection('data').doc('counseling').set({
-      records: appState.counselingRecords || [],
-      lastUpdated: new Date().toISOString()
-    });
-
+    clearTimeout(saveTimeout); // 타임아웃 해제
     updateSaveIndicator('saved');
-    console.log('☁️ Firestore 저장 완료');
+    console.log('✅ 클라우드 저장 완료');
 
   } catch (error) {
+    clearTimeout(saveTimeout);
     console.error('Firestore 저장 실패:', error);
     updateSaveIndicator('error');
     

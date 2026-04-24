@@ -49,25 +49,28 @@ function updateSaveIndicator(status) {
 /** 
  * Firestore에 전체 앱 상태 저장
  * @param {boolean} isImmediate true일 경우 디바운스 없이 즉시 저장 (복원 등 중요 작업 시)
+ * @returns {Promise<void>}
  */
 function saveState(isImmediate = false) {
   // 로그인되지 않은 경우 무시
   if (!currentUser) {
     console.warn('로그인되지 않아 저장을 건너뜁니다.');
-    return;
+    return Promise.resolve();
   }
 
   if (isImmediate) {
     clearTimeout(_saveDebounceTimer);
-    _performSave();
-    return;
+    return _performSave();
   }
 
   // 디바운스: 마지막 호출 후 SAVE_DEBOUNCE_MS 이내에 다시 호출되면 타이머 리셋
   clearTimeout(_saveDebounceTimer);
-  _saveDebounceTimer = setTimeout(() => {
-    _performSave();
-  }, SAVE_DEBOUNCE_MS);
+  return new Promise((resolve) => {
+    _saveDebounceTimer = setTimeout(async () => {
+      await _performSave();
+      resolve();
+    }, SAVE_DEBOUNCE_MS);
+  });
 }
 
 /** 실제 Firestore 저장 수행 */
@@ -76,12 +79,12 @@ async function _performSave() {
 
   updateSaveIndicator('saving');
 
-  // 타임아웃 처리 (7초 내에 완료되지 않으면 에러로 간주)
+  // 타임아웃 처리 (15초 내에 완료되지 않으면 에러로 간주)
   const saveTimeout = setTimeout(() => {
-    console.warn('⚠️ Firestore 저장 타임아웃 발생 (7초 경과)');
+    console.warn('⚠️ Firestore 저장 타임아웃 발생 (15초 경과)');
     updateSaveIndicator('error');
     showToast('저장 시간이 오래 걸리고 있습니다. 네트워크를 확인해주세요.', 'warning');
-  }, 7000);
+  }, 15000);
 
   try {
     const uid = currentUser.uid;
@@ -106,12 +109,18 @@ async function _performSave() {
 
     console.log('🔄 클라우드 데이터 병렬 저장 시작...');
 
+    // undefined 값으로 인한 Firestore 저장 실패를 막기 위해 JSON 직렬화/역직렬화로 데이터 정제
+    const cleanState = JSON.parse(JSON.stringify(stateToSave));
+    const cleanBehaviors = JSON.parse(JSON.stringify({ records: appState.behaviors || [], lastUpdated: now }));
+    const cleanAttendance = JSON.parse(JSON.stringify({ records: appState.attendance || [], lastUpdated: now }));
+    const cleanCounseling = JSON.parse(JSON.stringify({ records: appState.counselingRecords || [], lastUpdated: now }));
+
     // 4개 영역을 동시에 저장 (저장 속도 최적화)
     await Promise.all([
-      userDocRef.set(stateToSave, { merge: true }),
-      dataCol.doc('behaviors').set({ records: appState.behaviors || [], lastUpdated: now }),
-      dataCol.doc('attendance').set({ records: appState.attendance || [], lastUpdated: now }),
-      dataCol.doc('counseling').set({ records: appState.counselingRecords || [], lastUpdated: now })
+      userDocRef.set(cleanState, { merge: true }),
+      dataCol.doc('behaviors').set(cleanBehaviors),
+      dataCol.doc('attendance').set(cleanAttendance),
+      dataCol.doc('counseling').set(cleanCounseling)
     ]);
 
     clearTimeout(saveTimeout); // 타임아웃 해제
@@ -122,6 +131,19 @@ async function _performSave() {
     clearTimeout(saveTimeout);
     console.error('Firestore 저장 실패:', error);
     updateSaveIndicator('error');
+    
+    // 에러 원인을 명확하게 표시 (용량 초과, 권한 부족 등)
+    let errorMsg = '서버 저장 중 오류가 발생했습니다.';
+    if (error.message) {
+      if (error.message.includes('permission')) {
+        errorMsg = '저장 권한이 없습니다. (Firebase Security Rules 확인 필요)';
+      } else if (error.message.includes('exceeds limits') || error.message.includes('too large')) {
+        errorMsg = '저장할 데이터 용량이 초과되었습니다. (1MB 제한)';
+      } else {
+        errorMsg = `저장 실패: ${error.message}`;
+      }
+    }
+    showToast(errorMsg, 'error', 5000);
     
     // 실패 시 네트워크 재설정 시도 (오프라인 고착 현상 복구)
     console.log('🔄 네트워크 재설정 시도 중...');
@@ -220,6 +242,7 @@ async function loadStateFromFirestore() {
     if (typeof renderStudentSidebar === 'function') renderStudentSidebar();
     if (typeof applyTheme === 'function') applyTheme();
     if (typeof applyLayoutSettings === 'function') applyLayoutSettings();
+    if (typeof checkAndRunAutoBackup === 'function') checkAndRunAutoBackup();
   }
 }
 
@@ -232,10 +255,11 @@ async function saveCounselingToFirestore() {
   
   try {
     const uid = currentUser.uid;
-    await db.collection('users').doc(uid).collection('data').doc('counseling').set({
+    const cleanData = JSON.parse(JSON.stringify({
       records: appState.counselingRecords || [],
       lastUpdated: new Date().toISOString()
-    });
+    }));
+    await db.collection('users').doc(uid).collection('data').doc('counseling').set(cleanData);
     console.log('☁️ 상담 기록 개별 저장 완료');
   } catch (error) {
     console.error('상담 기록 저장 실패:', error);

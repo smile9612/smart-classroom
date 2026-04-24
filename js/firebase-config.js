@@ -15,11 +15,12 @@ const firebaseConfig = {
 // Firebase 앱 초기화
 firebase.initializeApp(firebaseConfig);
 
-// Firestore 오프라인 캐시 활성화 (더 안전한 설정)
-firebase.firestore().enablePersistence({ synchronizeTabs: true })
+// Firestore 오프라인 캐시 활성화 (기본 설정으로 변경하여 데드락 방지)
+firebase.firestore().enablePersistence()
   .catch((err) => {
     console.warn('Firestore Persistence:', err.code);
   });
+
 
 const db = firebase.firestore();
 const auth = firebase.auth();
@@ -34,8 +35,9 @@ async function ensureFirestoreOnline() {
   }
 }
 
-// 초기 로드 시 및 주기적으로 온라인 확인
+// 초기 로드 시 온라인 확인
 ensureFirestoreOnline();
-setInterval(ensureFirestoreOnline, 30000); // 30초마다 연결 확인
+// 주기적 온라인 확인은 저장 도중 웹소켓 연결을 끊어 저장이 지연/실패(타임아웃)되는 주 원인이 되므로 삭제함.
 
-console.log('✅ Firebase 초기화 및 네트워크 감시 시작');
+console.log('✅ Firebase 초기화 완료');
+

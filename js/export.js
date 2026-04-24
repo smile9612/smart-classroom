@@ -261,16 +261,18 @@ function restoreFromJson(file) {
       appState.holidays = data.holidays || [];
       appState.theme = data.theme || 'dark';
 
-      // Firestore에 즉시 저장
-      saveState(true);
+      // Firestore에 즉시 저장 완료 대기
+      showToast('데이터를 클라우드에 업로드 중입니다. 잠시만 기다려주세요...', 'info');
 
-      showToast('데이터를 클라우드에 업로드 중입니다...', 'info');
-
-      // 저장이 처리될 수 있도록 약간의 지연 후 새로고침 (가장 확실한 반영 방법)
-      setTimeout(() => {
+      saveState(true).then(() => {
         alert('데이터 복원이 완료되었습니다. 앱을 재시작합니다.');
         location.reload();
-      }, 1500);
+      }).catch(err => {
+        console.error('복원 중 저장 실패:', err);
+        alert('클라우드 업로드 중 오류가 발생했습니다. 네트워크 상태를 확인해주세요.');
+        location.reload();
+      });
+
 
     } catch (err) {
       console.error('Restore Error:', err);

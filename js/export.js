@@ -306,27 +306,68 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // 자리 배치 엑셀 내보내기 버튼 이벤트
+  // 자리 배치 내보내기 모달 열기 이벤트
   const btnExportSeating = document.getElementById('btnExportSeating');
   if (btnExportSeating) {
-    btnExportSeating.addEventListener('click', exportSeatingToSpreadsheet);
+    btnExportSeating.addEventListener('click', () => {
+      document.getElementById('exportSeatingModal').classList.remove('hidden');
+    });
   }
+
+  // 모달 닫기
+  document.getElementById('btnCloseExportSeatingModal')?.addEventListener('click', () => {
+    document.getElementById('exportSeatingModal').classList.add('hidden');
+  });
+
+  // 다운로드 실행 버튼 이벤트
+  document.getElementById('btnExecuteExportSeating')?.addEventListener('click', () => {
+    const scope = document.querySelector('input[name="exportScope"]:checked').value;
+    exportSeatingToSpreadsheet(scope);
+    document.getElementById('exportSeatingModal').classList.add('hidden');
+  });
 });
 
-/** 자리 배치도 엑셀/구글시트 내보내기 */
-function exportSeatingToSpreadsheet() {
-  const cls = getCurrentClass();
-  if (!cls) {
-    showToast('학급을 먼저 선택하세요.', 'error');
-    return;
-  }
-
+/** 자리 배치도 엑셀/구글시트 내보내기 (scope: 'current' | 'all') */
+function exportSeatingToSpreadsheet(scope = 'current') {
   if (typeof XLSX === 'undefined') {
     showToast('엑셀 라이브러리를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.', 'error');
     return;
   }
 
-  const isViewInverted = appState.isStudentView;
+  const workbook = XLSX.utils.book_new();
+
+  if (scope === 'current') {
+    const cls = getCurrentClass();
+    if (!cls) {
+      showToast('학급을 먼저 선택하세요.', 'error');
+      return;
+    }
+    appendClassSheetToWorkbook(workbook, cls, appState.isStudentView);
+  } else if (scope === 'all') {
+    if (!appState.classes || appState.classes.length === 0) {
+      showToast('등록된 학급이 없습니다.', 'error');
+      return;
+    }
+    // 각 반에 대해 시트를 추가
+    appState.classes.forEach(cls => {
+      appendClassSheetToWorkbook(workbook, cls, false); // 일괄 내보내기 시 교탁 기준(정상 뷰)으로 고정
+    });
+  }
+
+  // 파일명 지정
+  let fileName = '스마트교실관리_자리배치도.xlsx';
+  if (scope === 'current') {
+    const cls = getCurrentClass();
+    fileName = `스마트교실관리_${cls.name}.xlsx`;
+  }
+
+  // 다운로드 실행
+  XLSX.writeFile(workbook, fileName);
+  showToast('시트 파일이 다운로드되었습니다. 구글 드라이브나 엑셀에서 열어보세요!', 'success');
+}
+
+/** 특정 학급의 데이터를 Worksheet로 변환하여 Workbook에 추가 */
+function appendClassSheetToWorkbook(workbook, cls, isViewInverted) {
   const rowRange = [];
   if (isViewInverted) {
     for (let r = cls.gridRows - 1; r >= 0; r--) rowRange.push(r);
@@ -378,12 +419,16 @@ function exportSeatingToSpreadsheet() {
   }
   worksheet['!cols'] = wscols;
 
-  const workbook = XLSX.utils.book_new();
   // 시트 이름 제약 조건 처리 (최대 31자, 특수문자 제거)
-  const sheetName = cls.name.replace(/[\\/?*\[\]]/g, '_').substring(0, 31);
-  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+  let sheetName = cls.name.replace(/[\\/?*[\]]/g, '_').substring(0, 31);
+  
+  // 동일한 시트 이름이 있을 경우 대비 (엑셀은 중복 시트명 허용 안함)
+  let baseName = sheetName;
+  let counter = 1;
+  while (workbook.SheetNames.includes(sheetName)) {
+    sheetName = `${baseName.substring(0, 27)}(${counter})`;
+    counter++;
+  }
 
-  // 다운로드 실행 (구글 스프레드시트 호환 .xlsx)
-  XLSX.writeFile(workbook, '스마트 교실 관리.xlsx');
-  showToast('시트 파일이 다운로드되었습니다. 구글 드라이브나 엑셀에서 열어보세요!', 'success');
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 }

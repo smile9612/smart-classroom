@@ -1,6 +1,6 @@
 // 클라우드 버전 서비스 워커 (v2.0.0)
 // Firebase 요청 간섭을 피하기 위해 정적 자산만 캐시합니다.
-const CACHE_NAME = 'smart-class-cloud-v1.1';
+const CACHE_NAME = 'smart-class-cloud-v1.2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

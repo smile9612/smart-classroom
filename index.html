@@ -25,6 +25,9 @@
   <!-- PDF 생성을 위한 라이브러리 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   
+  <!-- Excel 생성을 위한 라이브러리 (SheetJS) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  
   <!-- Firebase SDK (CDN - 호환성 빌드 v9 compat) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -54,7 +57,7 @@
         <div class="feature-item"><span>🔒</span><p>안전한 개인 데이터</p></div>
         <div class="feature-item"><span>📱</span><p>어디서든 접속</p></div>
       </div>
-      <p class="login-footer">v2.0.0 Cloud Edition &middot; Data secured by Firebase</p>
+      <p class="login-footer">v2.1.0 Cloud Edition &middot; Data secured by Firebase</p>
     </div>
   </div>
 
@@ -74,7 +77,7 @@
     <div class="header-left">
       <button id="btnToggleTabs" class="btn btn-ghost btn-sm" title="메뉴 토글" style="font-size: 1.2rem; margin-right: 5px;">☰</button>
       <span class="app-icon">🏫</span>
-      <h1 class="app-title">스마트 교실 관리 <small style="font-size: 0.65rem; color: var(--text-muted); font-weight: 400; vertical-align: bottom;">v2.0.0 ☁️ Cloud</small></h1>
+      <h1 class="app-title">스마트 교실 관리 <small style="font-size: 0.65rem; color: var(--text-muted); font-weight: 400; vertical-align: bottom;">v2.1.0 ☁️ Cloud</small></h1>
     </div>
     <div class="header-center">
       <!-- 학급 선택 드롭다운 -->
@@ -482,6 +485,7 @@
           <div class="export-section">
             <h3>📥 데이터 내보내기</h3>
             <div class="export-buttons">
+              <button id="btnExportSeating" class="btn btn-ghost" style="color: #0f9d58; border-color: #0f9d58; grid-column: 1 / -1;">📊 현재 자리 배치도 내보내기 (엑셀/구글시트)</button>
               <button id="btnExportAllBehavior" class="btn btn-primary">행동기록 전체 내보내기 (CSV)</button>
               <button id="btnExportAllAttendance" class="btn btn-secondary">출결기록 전체 내보내기 (CSV)</button>
               <button id="btnExportNeis" class="btn btn-accent">나이스 입력용 내보내기</button>

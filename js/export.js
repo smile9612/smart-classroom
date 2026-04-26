@@ -305,4 +305,85 @@ document.addEventListener('DOMContentLoaded', () => {
       e.target.value = ''; // 같은 파일 재선택 허용
     }
   });
+
+  // 자리 배치 엑셀 내보내기 버튼 이벤트
+  const btnExportSeating = document.getElementById('btnExportSeating');
+  if (btnExportSeating) {
+    btnExportSeating.addEventListener('click', exportSeatingToSpreadsheet);
+  }
 });
+
+/** 자리 배치도 엑셀/구글시트 내보내기 */
+function exportSeatingToSpreadsheet() {
+  const cls = getCurrentClass();
+  if (!cls) {
+    showToast('학급을 먼저 선택하세요.', 'error');
+    return;
+  }
+
+  if (typeof XLSX === 'undefined') {
+    showToast('엑셀 라이브러리를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.', 'error');
+    return;
+  }
+
+  const isViewInverted = appState.isStudentView;
+  const rowRange = [];
+  if (isViewInverted) {
+    for (let r = cls.gridRows - 1; r >= 0; r--) rowRange.push(r);
+  } else {
+    for (let r = 0; r < cls.gridRows; r++) rowRange.push(r);
+  }
+
+  const colRange = [];
+  if (isViewInverted) {
+    for (let c = cls.gridCols - 1; c >= 0; c--) colRange.push(c);
+  } else {
+    for (let c = 0; c < cls.gridCols; c++) colRange.push(c);
+  }
+
+  const aoa = [];
+
+  // 제목 행
+  aoa.push([`${cls.name} 자리 배치도 (${todayStr()})`]);
+  aoa.push([]);
+
+  // 자리 데이터 구성
+  for (const row of rowRange) {
+    const rowData = [];
+    for (const col of colRange) {
+      const key = `${row}-${col}`;
+      const studentId = cls.seats[key];
+      const student = studentId ? cls.students.find(s => s.id === studentId) : null;
+      if (student) {
+        rowData.push(`[${student.number}] ${student.name}`);
+      } else {
+        rowData.push(""); // 빈자리
+      }
+    }
+    aoa.push(rowData);
+  }
+
+  // 칠판 표시 (가운데 쯤)
+  aoa.push([]);
+  const blackboardRow = new Array(cls.gridCols).fill("");
+  blackboardRow[Math.floor(cls.gridCols / 2)] = "[ 📺 칠판 (앞) ]";
+  aoa.push(blackboardRow);
+
+  const worksheet = XLSX.utils.aoa_to_sheet(aoa);
+
+  // 열 너비 조절
+  const wscols = [];
+  for (let i = 0; i < cls.gridCols; i++) {
+    wscols.push({ wch: 15 });
+  }
+  worksheet['!cols'] = wscols;
+
+  const workbook = XLSX.utils.book_new();
+  // 시트 이름 제약 조건 처리 (최대 31자, 특수문자 제거)
+  const sheetName = cls.name.replace(/[\\/?*\[\]]/g, '_').substring(0, 31);
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+
+  // 다운로드 실행 (구글 스프레드시트 호환 .xlsx)
+  XLSX.writeFile(workbook, '스마트 교실 관리.xlsx');
+  showToast('시트 파일이 다운로드되었습니다. 구글 드라이브나 엑셀에서 열어보세요!', 'success');
+}

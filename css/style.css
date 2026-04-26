@@ -97,7 +97,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24px;
+  padding: 0 12px;
   height: 64px;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
@@ -105,18 +105,18 @@ body {
   top: 0;
   z-index: 100;
   backdrop-filter: blur(12px);
-  gap: 16px;
+  gap: 8px;
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   flex-shrink: 0;
 }
-.app-icon { font-size: 1.6rem; }
+.app-icon { font-size: 1.4rem; }
 .app-title {
-  font-size: 1.15rem;
+  font-size: 1.05rem;
   font-weight: 700;
   background: linear-gradient(135deg, #a78bfa, #6c63ff, #60a5fa);
   -webkit-background-clip: text;
@@ -131,17 +131,17 @@ body {
   justify-content: center;
   flex: 1 1 auto;
   min-width: 0;
-  gap: 12px;
+  gap: 8px;
 }
 .class-selector-wrap {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
 }
 .header-controls {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   flex-shrink: 0;
 }
 .class-select {
@@ -149,28 +149,34 @@ body {
   color: var(--text-primary);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
-  padding: 6px 12px;
+  padding: 4px 8px;
   font-family: inherit;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   cursor: pointer;
   transition: border-color var(--transition);
-  min-width: 120px;
+  min-width: 100px;
 }
 .class-select:hover { border-color: var(--accent); }
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   flex-shrink: 0;
 }
 
+/* 헤더 내 버튼들을 조금 더 컴팩트하게 */
+.app-header .btn {
+  padding: 5px 8px;
+  font-size: 0.78rem;
+}
+
 .today-badge {
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   color: var(--text-secondary);
   background: var(--bg-card);
   border: 1px solid var(--border);
-  padding: 4px 10px;
+  padding: 3px 8px;
   border-radius: 99px;
   white-space: nowrap;
 }

@@ -608,8 +608,14 @@ function checkCurrentLesson() {
     return;
   }
 
+  // 수업 시작 2분 전부터 감지하기 위해 현재 시간에 2분을 더한 값을 비교 기준으로 사용
+  const targetTime = new Date(now.getTime() + 2 * 60000);
+  const targetTimeStr = targetTime.getHours().toString().padStart(2, '0') + ":" + targetTime.getMinutes().toString().padStart(2, '0');
   const timeStr = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
-  const currentPeriodIdx = appState.timeConfig.findIndex(conf => timeStr >= conf.start && timeStr <= conf.end);
+  
+  const currentPeriodIdx = appState.timeConfig.findIndex(conf => {
+    return targetTimeStr >= conf.start && timeStr <= conf.end;
+  });
 
   if (currentPeriodIdx > -1) {
     const key = `${day-1}-${currentPeriodIdx}`;
